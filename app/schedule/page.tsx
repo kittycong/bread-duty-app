@@ -2,7 +2,7 @@ import Link from "next/link";
 import DutyTable from "@/components/DutyTable";
 import { generateSchedule } from "@/utils/dutyGenerator";
 
-const schedule = generateSchedule("2026-05-25", 12);
+const schedule = generateSchedule("2026-05-27", 12);
 
 export default function SchedulePage() {
   return (
