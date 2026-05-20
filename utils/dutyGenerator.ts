@@ -1,20 +1,13 @@
 import type { DutyAssignment, TeamName } from "@/types";
+import { getActiveEmployeesByTeam, teamNames } from "@/lib/employees";
 
-const adminTeam = ["최수연", "조승민", "노현숙"];
-const supportTeam = ["권은지", "김유리", "정채윤"];
-const businessTeam = ["김은서", "송지은", "강지나", "최유나", "인상필"];
-
-const teamMap: Record<TeamName, string[]> = {
-  "사무행정팀": adminTeam,
-  "활동지원팀": supportTeam,
-  "복지사업팀": businessTeam
-};
-
-const teams: TeamName[] = ["사무행정팀", "활동지원팀", "복지사업팀"];
 export const backupCycle: TeamName[] = ["활동지원팀", "복지사업팀", "사무행정팀"];
+const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
-const publicHolidays = new Set([
-  "2026-06-03"
+const publicHolidays = new Map<string, string>([
+  ["2026-06-03", "전국동시지방선거"],
+  ["2027-05-05", "어린이날"],
+  ["2027-09-15", "추석"]
 ]);
 
 function parseDate(date: string): Date {
@@ -32,26 +25,53 @@ function addDays(date: Date, days: number): Date {
   return nextDate;
 }
 
-function moveHolidayToNextDay(date: Date): Date {
+function moveHolidayToNextDay(date: Date): { date: Date; holidayName?: string; movedFrom?: string } {
   const formattedDate = formatDate(date);
-  return publicHolidays.has(formattedDate) ? addDays(date, 1) : date;
+  const holidayName = publicHolidays.get(formattedDate);
+
+  if (!holidayName) {
+    return { date };
+  }
+
+  return {
+    date: addDays(date, 1),
+    holidayName,
+    movedFrom: formattedDate
+  };
 }
 
-export function generatePickupMembers(backupTeam: TeamName): string[] {
-  const activeTeams = teams.filter((team) => team !== backupTeam);
+function getDateParts(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const day = date.getUTCDate();
+  const weekday = weekdays[date.getUTCDay()];
+  const dateText = formatDate(date);
+
+  return {
+    year,
+    month,
+    day,
+    weekday,
+    dateText,
+    dateLabel: `${dateText} (${weekday})`
+  };
+}
+
+export function generatePickupMembers(backupTeam: TeamName, weekIndex = 0): string[] {
+  const activeTeams = teamNames.filter((team) => team !== backupTeam);
   const members = ["근로지원인"];
 
   activeTeams.forEach((team) => {
-    const list = teamMap[team];
-    const index = Math.floor(Math.random() * list.length);
-    members.push(list[index]);
+    const list = getActiveEmployeesByTeam(team);
+    const index = weekIndex % list.length;
+    members.push(list[index]?.name ?? `${team} 담당자 미지정`);
   });
 
   return members;
 }
 
-export function generateDuty(_date: string, backupTeam: TeamName): string[] {
-  return generatePickupMembers(backupTeam);
+export function generateDuty(_date: string, backupTeam: TeamName, weekIndex = 0): string[] {
+  return generatePickupMembers(backupTeam, weekIndex);
 }
 
 export function generateSchedule(startDate: string, weeks: number): DutyAssignment[] {
@@ -59,18 +79,33 @@ export function generateSchedule(startDate: string, weeks: number): DutyAssignme
 
   for (let i = 0; i < weeks; i += 1) {
     const wednesday = addDays(parseDate(startDate), i * 7);
-    const dutyDate = moveHolidayToNextDay(wednesday);
+    const moved = moveHolidayToNextDay(wednesday);
 
     const backupTeam = backupCycle[i % backupCycle.length];
-    const formattedDate = formatDate(dutyDate);
+    const dateParts = getDateParts(moved.date);
 
     schedule.push({
       week: i + 1,
-      date: formattedDate,
+      date: dateParts.dateText,
+      dateLabel: dateParts.dateLabel,
+      year: dateParts.year,
+      month: dateParts.month,
+      day: dateParts.day,
+      weekday: dateParts.weekday,
       backupTeam,
-      pickupMembers: generateDuty(formattedDate, backupTeam)
+      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i),
+      holidayName: moved.holidayName,
+      movedFrom: moved.movedFrom
     });
   }
 
   return schedule;
+}
+
+export function generateScheduleUntil(startDate: string, endDate: string): DutyAssignment[] {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const weeks = Math.floor((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+
+  return generateSchedule(startDate, weeks).filter((assignment) => parseDate(assignment.date) <= end);
 }

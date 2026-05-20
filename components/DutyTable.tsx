@@ -41,7 +41,12 @@ export default function DutyTable({ assignments }: DutyTableProps) {
                   {assignment.week}주차
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-stone-700">
-                  {assignment.date}
+                  <div className="font-medium text-stone-900">{assignment.dateLabel}</div>
+                  {assignment.holidayName ? (
+                    <div className="mt-1 text-xs text-amber-700">
+                      {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
+                    </div>
+                  ) : null}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-stone-700">
                   {assignment.backupTeam}

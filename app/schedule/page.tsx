@@ -1,8 +1,8 @@
 import Link from "next/link";
-import DutyTable from "@/components/DutyTable";
-import { generateSchedule } from "@/utils/dutyGenerator";
+import ScheduleTabs from "@/components/ScheduleTabs";
+import { generateScheduleUntil } from "@/utils/dutyGenerator";
 
-const schedule = generateSchedule("2026-05-27", 12);
+const schedule = generateScheduleUntil("2026-05-27", "2027-12-29");
 
 export default function SchedulePage() {
   return (
@@ -10,7 +10,7 @@ export default function SchedulePage() {
       <div className="mx-auto w-full max-w-6xl px-5 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-amber-700">12주 일정</p>
+            <p className="text-sm font-semibold text-amber-700">2026-2027 연속 일정</p>
             <h1 className="mt-1 text-3xl font-bold text-stone-950">전체 당번표</h1>
           </div>
           <Link
@@ -21,7 +21,7 @@ export default function SchedulePage() {
           </Link>
         </div>
 
-        <DutyTable assignments={schedule} />
+        <ScheduleTabs assignments={schedule} />
       </div>
     </main>
   );

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import DutyTable from "@/components/DutyTable";
-import { generateSchedule } from "@/utils/dutyGenerator";
+import ScheduleTabs from "@/components/ScheduleTabs";
+import { generateScheduleUntil } from "@/utils/dutyGenerator";
 
-const schedule = generateSchedule("2026-05-27", 8);
+const schedule = generateScheduleUntil("2026-05-27", "2027-12-29");
 
 export default function HomePage() {
   return (
@@ -15,7 +15,8 @@ export default function HomePage() {
               빵 수령 당번표
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-stone-600">
-              백업팀 순환 규칙에 따라 주차별 수령 담당자를 자동으로 구성합니다.
+              2026년 5월 27일부터 2027년 말까지 수요일 기준으로 이어지는 당번표입니다.
+              공휴일과 겹치면 목요일로 자동 이동합니다.
             </p>
           </div>
           <Link
@@ -28,7 +29,7 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-5 py-8">
-        <DutyTable assignments={schedule} />
+        <ScheduleTabs assignments={schedule} />
       </section>
     </main>
   );
