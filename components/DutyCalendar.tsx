@@ -1,4 +1,5 @@
 import type { DutyAssignment } from "@/types";
+import { getPublicHoliday } from "@/lib/holidays";
 
 type DutyCalendarProps = {
   assignments: DutyAssignment[];
@@ -64,18 +65,38 @@ export default function DutyCalendar({ assignments }: DutyCalendarProps) {
                           ? ""
                           : `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                       const assignment = assignmentMap.get(dateKey);
+                      const holidayName = dateKey ? getPublicHoliday(dateKey) : undefined;
 
                       return (
                         <div
                           key={`${year}-${month}-${cellIndex}`}
-                          className="min-h-20 border-b border-r border-stone-100 p-1.5 text-xs last:border-r-0"
+                          className={
+                            holidayName
+                              ? "min-h-20 border-b border-r border-red-100 bg-red-50 p-1.5 text-xs last:border-r-0"
+                              : "min-h-20 border-b border-r border-stone-100 p-1.5 text-xs last:border-r-0"
+                          }
                         >
                           {day === null ? null : (
                             <>
-                              <div className="font-semibold text-stone-700">{day}</div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="font-semibold text-stone-700">{day}</span>
+                                {holidayName ? (
+                                  <span className="rounded border border-red-200 bg-white px-1 text-[10px] font-bold text-red-700">
+                                    공휴일
+                                  </span>
+                                ) : null}
+                              </div>
+                              {holidayName ? (
+                                <div className="mt-1 truncate text-[11px] font-semibold text-red-700">
+                                  {holidayName}
+                                </div>
+                              ) : null}
                               {assignment ? (
                                 <div className="mt-1 rounded-md border border-amber-200 bg-amber-50 p-1 text-amber-950">
                                   <div className="font-semibold">{assignment.week}주차</div>
+                                  {assignment.holidayName ? (
+                                    <div className="mt-0.5 font-semibold text-red-700">공휴일 다음 날</div>
+                                  ) : null}
                                   <div className="mt-0.5">{assignment.backupTeam}</div>
                                   <div className="mt-0.5 truncate">{assignment.pickupMembers.join(", ")}</div>
                                 </div>

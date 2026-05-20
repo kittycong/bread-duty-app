@@ -1,14 +1,10 @@
 import type { DutyAssignment, TeamName } from "@/types";
-import { getActiveEmployeesByTeam, teamNames } from "@/lib/employees";
+import { employees, teamNames } from "@/lib/employees";
+import { getPublicHoliday } from "@/lib/holidays";
+import type { Employee } from "@/types";
 
 export const backupCycle: TeamName[] = ["활동지원팀", "복지사업팀", "사무행정팀"];
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-
-const publicHolidays = new Map<string, string>([
-  ["2026-06-03", "전국동시지방선거"],
-  ["2027-05-05", "어린이날"],
-  ["2027-09-15", "추석"]
-]);
 
 function parseDate(date: string): Date {
   const [year, month, day] = date.split("-").map(Number);
@@ -27,7 +23,7 @@ function addDays(date: Date, days: number): Date {
 
 function moveHolidayToNextDay(date: Date): { date: Date; holidayName?: string; movedFrom?: string } {
   const formattedDate = formatDate(date);
-  const holidayName = publicHolidays.get(formattedDate);
+  const holidayName = getPublicHoliday(formattedDate);
 
   if (!holidayName) {
     return { date };
@@ -57,12 +53,20 @@ function getDateParts(date: Date) {
   };
 }
 
-export function generatePickupMembers(backupTeam: TeamName, weekIndex = 0): string[] {
+function getActiveEmployeesByTeamFromRoster(roster: Employee[], team: TeamName): Employee[] {
+  return roster.filter((employee) => employee.team === team && employee.status === "active");
+}
+
+export function generatePickupMembers(
+  backupTeam: TeamName,
+  weekIndex = 0,
+  roster: Employee[] = employees
+): string[] {
   const activeTeams = teamNames.filter((team) => team !== backupTeam);
   const members = ["근로지원인"];
 
   activeTeams.forEach((team) => {
-    const list = getActiveEmployeesByTeam(team);
+    const list = getActiveEmployeesByTeamFromRoster(roster, team);
     const index = weekIndex % list.length;
     members.push(list[index]?.name ?? `${team} 담당자 미지정`);
   });
@@ -70,11 +74,20 @@ export function generatePickupMembers(backupTeam: TeamName, weekIndex = 0): stri
   return members;
 }
 
-export function generateDuty(_date: string, backupTeam: TeamName, weekIndex = 0): string[] {
-  return generatePickupMembers(backupTeam, weekIndex);
+export function generateDuty(
+  _date: string,
+  backupTeam: TeamName,
+  weekIndex = 0,
+  roster: Employee[] = employees
+): string[] {
+  return generatePickupMembers(backupTeam, weekIndex, roster);
 }
 
-export function generateSchedule(startDate: string, weeks: number): DutyAssignment[] {
+export function generateSchedule(
+  startDate: string,
+  weeks: number,
+  roster: Employee[] = employees
+): DutyAssignment[] {
   const schedule: DutyAssignment[] = [];
 
   for (let i = 0; i < weeks; i += 1) {
@@ -93,7 +106,7 @@ export function generateSchedule(startDate: string, weeks: number): DutyAssignme
       day: dateParts.day,
       weekday: dateParts.weekday,
       backupTeam,
-      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i),
+      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i, roster),
       holidayName: moved.holidayName,
       movedFrom: moved.movedFrom
     });
@@ -102,10 +115,14 @@ export function generateSchedule(startDate: string, weeks: number): DutyAssignme
   return schedule;
 }
 
-export function generateScheduleUntil(startDate: string, endDate: string): DutyAssignment[] {
+export function generateScheduleUntil(
+  startDate: string,
+  endDate: string,
+  roster: Employee[] = employees
+): DutyAssignment[] {
   const start = parseDate(startDate);
   const end = parseDate(endDate);
   const weeks = Math.floor((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
 
-  return generateSchedule(startDate, weeks).filter((assignment) => parseDate(assignment.date) <= end);
+  return generateSchedule(startDate, weeks, roster).filter((assignment) => parseDate(assignment.date) <= end);
 }

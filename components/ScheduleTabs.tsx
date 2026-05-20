@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
-import type { DutyAssignment } from "@/types";
+import { generateScheduleUntil } from "@/utils/dutyGenerator";
+import type { Employee } from "@/types";
 
 type ScheduleTabsProps = {
-  assignments: DutyAssignment[];
+  endDate: string;
+  initialEmployees: Employee[];
+  startDate: string;
 };
 
 const tabs = [
@@ -18,8 +21,13 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 
-export default function ScheduleTabs({ assignments }: ScheduleTabsProps) {
+export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
+  const [employeeOrder, setEmployeeOrder] = useState<Employee[]>(initialEmployees);
+  const assignments = useMemo(
+    () => generateScheduleUntil(startDate, endDate, employeeOrder),
+    [endDate, employeeOrder, startDate]
+  );
 
   return (
     <div className="space-y-4">
@@ -42,7 +50,9 @@ export default function ScheduleTabs({ assignments }: ScheduleTabsProps) {
 
       {activeTab === "table" ? <DutyTable assignments={assignments} /> : null}
       {activeTab === "calendar" ? <DutyCalendar assignments={assignments} /> : null}
-      {activeTab === "employees" ? <EmployeeRoster /> : null}
+      {activeTab === "employees" ? (
+        <EmployeeRoster employees={employeeOrder} onEmployeesChange={setEmployeeOrder} />
+      ) : null}
     </div>
   );
 }

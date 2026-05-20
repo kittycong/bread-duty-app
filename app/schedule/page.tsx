@@ -1,8 +1,9 @@
 import Link from "next/link";
 import ScheduleTabs from "@/components/ScheduleTabs";
-import { generateScheduleUntil } from "@/utils/dutyGenerator";
+import { employees } from "@/lib/employees";
 
-const schedule = generateScheduleUntil("2026-05-27", "2027-12-29");
+const startDate = "2026-05-27";
+const endDate = "2027-12-29";
 
 export default function SchedulePage() {
   return (
@@ -21,7 +22,7 @@ export default function SchedulePage() {
           </Link>
         </div>
 
-        <ScheduleTabs assignments={schedule} />
+        <ScheduleTabs endDate={endDate} initialEmployees={employees} startDate={startDate} />
       </div>
     </main>
   );
