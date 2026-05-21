@@ -7,7 +7,8 @@ import type { DutyAssignment, TeamName } from "@/types";
 
 type AssignmentUpdate = {
   date: string;
-  pickupMembers: string[];
+  member: string;
+  team: TeamName;
 };
 
 type DutyCalendarProps = {
@@ -43,17 +44,11 @@ function getMonthCells(year: number, month: number) {
 }
 
 function getActiveTeams(assignment: DutyAssignment): TeamName[] {
-  return teamNames.filter((team) => team !== assignment.backupTeam);
-}
-
-function getTeamMemberIndex(assignment: DutyAssignment, team: TeamName) {
-  const teamIndex = getActiveTeams(assignment).indexOf(team);
-  return teamIndex < 0 ? -1 : teamIndex + 1;
+  return assignment.activeTeams ?? teamNames.filter((team) => team !== assignment.backupTeam);
 }
 
 function getTeamMember(assignment: DutyAssignment, team: TeamName) {
-  const memberIndex = getTeamMemberIndex(assignment, team);
-  return memberIndex < 0 ? undefined : assignment.pickupMembers[memberIndex];
+  return assignment.pickupByTeam?.[team];
 }
 
 function swapTeamMembers(
@@ -61,24 +56,16 @@ function swapTeamMembers(
   targetAssignment: DutyAssignment,
   team: TeamName
 ): AssignmentUpdate[] {
-  const currentIndex = getTeamMemberIndex(currentAssignment, team);
-  const targetIndex = getTeamMemberIndex(targetAssignment, team);
+  const currentMember = getTeamMember(currentAssignment, team);
+  const targetMember = getTeamMember(targetAssignment, team);
 
-  if (currentIndex < 0 || targetIndex < 0) {
+  if (!currentMember || !targetMember) {
     return [];
   }
 
-  const nextCurrentMembers = [...currentAssignment.pickupMembers];
-  const nextTargetMembers = [...targetAssignment.pickupMembers];
-  const currentMember = nextCurrentMembers[currentIndex];
-  const targetMember = nextTargetMembers[targetIndex];
-
-  nextCurrentMembers[currentIndex] = targetMember;
-  nextTargetMembers[targetIndex] = currentMember;
-
   return [
-    { date: currentAssignment.date, pickupMembers: nextCurrentMembers },
-    { date: targetAssignment.date, pickupMembers: nextTargetMembers }
+    { date: currentAssignment.date, team, member: targetMember },
+    { date: targetAssignment.date, team, member: currentMember }
   ];
 }
 

@@ -23,7 +23,10 @@ export type DutyAssignment = {
   day: number;
   weekday: string;
   backupTeam: TeamName;
+  activeTeams: TeamName[];
+  pickupByTeam: Partial<Record<TeamName, string>>;
   pickupMembers: string[];
+  workerSupportName: string;
   holidayName?: string;
   movedFrom?: string;
 };

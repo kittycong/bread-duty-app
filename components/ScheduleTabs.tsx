@@ -5,7 +5,7 @@ import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
 import { defaultWorkerSupport, generateScheduleUntil } from "@/utils/dutyGenerator";
-import type { Employee, WorkerSupport } from "@/types";
+import type { Employee, TeamName, WorkerSupport } from "@/types";
 
 type ScheduleTabsProps = {
   endDate: string;
@@ -20,11 +20,13 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
-type AssignmentOverrides = Record<string, string[]>;
+type AssignmentOverrides = Record<string, Partial<Record<TeamName, string>>>;
 type AssignmentUpdate = {
   date: string;
-  pickupMembers: string[];
+  member: string;
+  team: TeamName;
 };
+const assignmentOverrideStorageKey = "bread-duty-team-assignment-overrides-v2";
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
@@ -49,7 +51,8 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       return {};
     }
 
-    const savedOverrides = window.localStorage.getItem("bread-duty-assignment-overrides");
+    window.localStorage.removeItem("bread-duty-assignment-overrides");
+    const savedOverrides = window.localStorage.getItem(assignmentOverrideStorageKey);
     if (!savedOverrides) {
       return {};
     }
@@ -77,19 +80,37 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
     }
   });
   const assignments = useMemo(() => {
-    return generateScheduleUntil(startDate, endDate, employeeOrder, workerSupport).map((assignment) => ({
-      ...assignment,
-      pickupMembers: assignmentOverrides[assignment.date] ?? assignment.pickupMembers
-    }));
+    return generateScheduleUntil(startDate, endDate, employeeOrder, workerSupport).map((assignment) => {
+      const override = assignmentOverrides[assignment.date] ?? {};
+      const pickupByTeam = { ...assignment.pickupByTeam };
+
+      assignment.activeTeams.forEach((team) => {
+        if (override[team]) {
+          pickupByTeam[team] = override[team];
+        }
+      });
+
+      return {
+        ...assignment,
+        pickupByTeam,
+        pickupMembers: [
+          assignment.workerSupportName,
+          ...assignment.activeTeams.map((team) => pickupByTeam[team] ?? `${team} 담당자 미지정`)
+        ]
+      };
+    });
   }, [assignmentOverrides, endDate, employeeOrder, startDate, workerSupport]);
 
   function updateAssignmentMembers(updates: AssignmentUpdate[]) {
     setAssignmentOverrides((currentOverrides) => {
       const nextOverrides = { ...currentOverrides };
       updates.forEach((update) => {
-        nextOverrides[update.date] = update.pickupMembers;
+        nextOverrides[update.date] = {
+          ...(nextOverrides[update.date] ?? {}),
+          [update.team]: update.member
+        };
       });
-      window.localStorage.setItem("bread-duty-assignment-overrides", JSON.stringify(nextOverrides));
+      window.localStorage.setItem(assignmentOverrideStorageKey, JSON.stringify(nextOverrides));
       return nextOverrides;
     });
   }

@@ -54,10 +54,6 @@ function getDateParts(date: Date) {
   };
 }
 
-function getActiveEmployeesByTeamFromRoster(roster: Employee[], team: TeamName): Employee[] {
-  return roster.filter((employee) => employee.team === team && employee.status === "active");
-}
-
 function isEmployeeActiveOnDate(employee: Employee, date: string) {
   return (
     employee.status === "active" &&
@@ -81,10 +77,7 @@ export function generatePickupMembers(
   const members = [workerSupport.name || defaultWorkerSupport.name];
 
   activeTeams.forEach((team) => {
-    const list =
-      date === "0000-00-00"
-        ? getActiveEmployeesByTeamFromRoster(roster, team)
-        : getActiveEmployeesByTeamOnDate(roster, team, date);
+    const list = getActiveEmployeesByTeamOnDate(roster, team, date);
     const index = weekIndex % list.length;
     members.push(list[index]?.name ?? `${team} 담당자 미지정`);
   });
@@ -116,6 +109,14 @@ export function generateSchedule(
 
     const backupTeam = backupCycle[i % backupCycle.length];
     const dateParts = getDateParts(moved.date);
+    const activeTeams = teamNames.filter((team) => team !== backupTeam);
+    const pickupByTeam: Partial<Record<TeamName, string>> = {};
+
+    activeTeams.forEach((team) => {
+      const list = getActiveEmployeesByTeamOnDate(roster, team, dateParts.dateText);
+      const index = i % list.length;
+      pickupByTeam[team] = list[index]?.name ?? `${team} 담당자 미지정`;
+    });
 
     schedule.push({
       week: i + 1,
@@ -126,7 +127,13 @@ export function generateSchedule(
       day: dateParts.day,
       weekday: dateParts.weekday,
       backupTeam,
-      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i, roster, workerSupport),
+      activeTeams,
+      pickupByTeam,
+      pickupMembers: [
+        workerSupport.name || defaultWorkerSupport.name,
+        ...activeTeams.map((team) => pickupByTeam[team] ?? `${team} 담당자 미지정`)
+      ],
+      workerSupportName: workerSupport.name || defaultWorkerSupport.name,
       holidayName: moved.holidayName,
       movedFrom: moved.movedFrom
     });
