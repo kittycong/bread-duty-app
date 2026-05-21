@@ -4,9 +4,9 @@ export const teamNames: TeamName[] = ["사무행정팀", "활동지원팀", "복
 
 export const employees: Employee[] = [
   { id: "admin-choi-su-yeon", name: "최수연", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "admin-jo-seung-min", name: "조승민", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "admin-no-hyeon-suk", name: "노현숙", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "admin-kim-hwi-won", name: "김휘원", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
+  { id: "admin-no-hyeon-suk", name: "노현숙", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
+  { id: "admin-jo-seung-min", name: "조승민", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "support-kwon-eun-ji", name: "권은지", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "support-kim-yu-ri", name: "김유리", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "support-jeong-chae-yun", name: "정채윤", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },

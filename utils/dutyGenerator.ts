@@ -102,6 +102,11 @@ export function generateSchedule(
   workerSupport: WorkerSupport = defaultWorkerSupport
 ): DutyAssignment[] {
   const schedule: DutyAssignment[] = [];
+  const teamAssignmentCounts: Record<TeamName, number> = {
+    "사무행정팀": 0,
+    "활동지원팀": 0,
+    "복지사업팀": 0
+  };
 
   for (let i = 0; i < weeks; i += 1) {
     const wednesday = addDays(parseDate(startDate), i * 7);
@@ -114,8 +119,9 @@ export function generateSchedule(
 
     activeTeams.forEach((team) => {
       const list = getActiveEmployeesByTeamOnDate(roster, team, dateParts.dateText);
-      const index = i % list.length;
+      const index = teamAssignmentCounts[team] % list.length;
       pickupByTeam[team] = list[index]?.name ?? `${team} 담당자 미지정`;
+      teamAssignmentCounts[team] += 1;
     });
 
     schedule.push({

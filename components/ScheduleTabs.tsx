@@ -27,6 +27,30 @@ type AssignmentUpdate = {
   team: TeamName;
 };
 const assignmentOverrideStorageKey = "bread-duty-team-assignment-overrides-v2";
+const employeeStorageKey = "bread-duty-employees";
+const oldDefaultAdminOrder = ["최수연", "조승민", "노현숙", "김휘원"];
+const currentDefaultAdminOrder = ["최수연", "김휘원", "노현숙", "조승민"];
+
+function migrateDefaultAdminOrder(savedEmployees: Employee[], initialEmployees: Employee[]) {
+  const savedAdminEmployees = savedEmployees.filter((employee) => employee.team === "사무행정팀");
+  const savedAdminOrder = savedAdminEmployees.map((employee) => employee.name);
+
+  if (savedAdminOrder.join("|") !== oldDefaultAdminOrder.join("|")) {
+    return savedEmployees;
+  }
+
+  const defaultAdminByName = new Map(
+    initialEmployees
+      .filter((employee) => employee.team === "사무행정팀")
+      .map((employee) => [employee.name, employee])
+  );
+  const migratedAdminEmployees = currentDefaultAdminOrder
+    .map((name) => defaultAdminByName.get(name))
+    .filter((employee): employee is Employee => Boolean(employee));
+  const withoutAdminEmployees = savedEmployees.filter((employee) => employee.team !== "사무행정팀");
+
+  return [...migratedAdminEmployees, ...withoutAdminEmployees];
+}
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
@@ -35,13 +59,20 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       return initialEmployees;
     }
 
-    const savedEmployees = window.localStorage.getItem("bread-duty-employees");
+    const savedEmployees = window.localStorage.getItem(employeeStorageKey);
     if (!savedEmployees) {
       return initialEmployees;
     }
 
     try {
-      return JSON.parse(savedEmployees) as Employee[];
+      const parsedEmployees = JSON.parse(savedEmployees) as Employee[];
+      const migratedEmployees = migrateDefaultAdminOrder(parsedEmployees, initialEmployees);
+
+      if (migratedEmployees !== parsedEmployees) {
+        window.localStorage.setItem(employeeStorageKey, JSON.stringify(migratedEmployees));
+      }
+
+      return migratedEmployees;
     } catch {
       return initialEmployees;
     }
