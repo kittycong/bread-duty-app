@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getPublicHoliday } from "@/lib/holidays";
 import { teamNames } from "@/lib/employees";
 import type { DutyAssignment, TeamName } from "@/types";
@@ -41,6 +41,15 @@ function getMonthCells(year: number, month: number) {
   }
 
   return cells;
+}
+
+function getKoreaTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
 }
 
 function getActiveTeams(assignment: DutyAssignment): TeamName[] {
@@ -92,6 +101,7 @@ function findSwapTarget(
 export default function DutyCalendar({ assignments, onAssignmentMembersChange }: DutyCalendarProps) {
   const [monthIndex, setMonthIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
+  const [todayKey, setTodayKey] = useState("");
   const assignmentMap = useMemo(
     () => new Map(assignments.map((assignment) => [assignment.date, assignment])),
     [assignments]
@@ -114,6 +124,10 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
   const latestSelectedAssignment = selectedAssignment
     ? assignments.find((assignment) => assignment.date === selectedAssignment.date) ?? selectedAssignment
     : null;
+
+  useEffect(() => {
+    setTodayKey(getKoreaTodayKey());
+  }, []);
 
   function closeAssignment() {
     setSelectedAssignment(null);
@@ -178,21 +192,29 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                   : `${currentMonth.year}-${String(currentMonth.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const assignment = assignmentMap.get(dateKey);
               const holidayName = dateKey ? getPublicHoliday(dateKey) : undefined;
+              const isToday = dateKey === todayKey;
+              const isTodayDuty = isToday && Boolean(assignment);
 
               return (
                 <div
                   key={`${currentMonth.year}-${currentMonth.month}-${cellIndex}`}
                   className={
-                    holidayName
-                      ? "min-h-36 border-b border-r border-red-100 bg-red-50 p-2 text-xs"
-                      : "min-h-36 border-b border-r border-stone-100 p-2 text-xs"
+                    [
+                      "min-h-36 border-b border-r p-2 text-xs",
+                      holidayName ? "border-red-100 bg-red-50" : "border-stone-100",
+                      isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : ""
+                    ].join(" ")
                   }
                 >
                   {day === null ? null : (
                     <>
                       <div className="flex min-h-5 items-center justify-between gap-1">
                         <span className="font-semibold text-stone-700">{day}</span>
-                        {holidayName ? (
+                        {isToday ? (
+                          <span className="rounded border border-stone-900 bg-stone-900 px-1 text-[10px] font-bold text-white">
+                            오늘
+                          </span>
+                        ) : holidayName ? (
                           <span className="rounded border border-red-200 bg-white px-1 text-[10px] font-bold text-red-700">
                             공휴일
                           </span>
@@ -207,12 +229,24 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                         <button
                           type="button"
                           onClick={() => setSelectedAssignment(assignment)}
-                          className="mt-2 block w-full rounded-md border border-amber-200 bg-amber-50 p-2 text-left text-amber-950 transition hover:border-amber-300 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                          className={[
+                            "mt-2 block w-full rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
+                            isTodayDuty
+                              ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
+                              : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100"
+                          ].join(" ")}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-semibold">{assignment.week}주차</span>
-                            <span className="text-[11px] font-semibold">{assignment.backupTeam}</span>
+                            <span className="text-[11px] font-semibold">
+                              {isTodayDuty ? "오늘 당번" : assignment.backupTeam}
+                            </span>
                           </div>
+                          {isTodayDuty ? (
+                            <div className="mt-1 text-[11px] font-bold text-stone-900">
+                              백업팀: {assignment.backupTeam}
+                            </div>
+                          ) : null}
                           {assignment.holidayName ? (
                             <div className="mt-1 font-semibold text-red-700">공휴일 다음 날</div>
                           ) : null}
