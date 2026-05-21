@@ -1,7 +1,13 @@
-import type { DutyAssignment } from "@/types";
+import type { DutyAssignment, TeamName } from "@/types";
 
 type DutyTableProps = {
   assignments: DutyAssignment[];
+};
+
+const teamBadgeStyles: Record<TeamName, string> = {
+  "사무행정팀": "border-pink-200 bg-pink-50 text-pink-900",
+  "활동지원팀": "border-lime-200 bg-lime-50 text-lime-900",
+  "복지사업팀": "border-yellow-200 bg-yellow-50 text-yellow-900"
 };
 
 export default function DutyTable({ assignments }: DutyTableProps) {
@@ -53,12 +59,16 @@ export default function DutyTable({ assignments }: DutyTableProps) {
                 </td>
                 <td className="px-4 py-4 text-stone-700">
                   <div className="flex flex-wrap gap-2">
-                    {assignment.pickupMembers.map((member) => (
+                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
+                      {assignment.workerSupportName}
+                    </span>
+                    {assignment.activeTeams.map((team) => (
                       <span
-                        key={`${assignment.date}-${member}`}
-                        className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900"
+                        key={`${assignment.date}-${team}`}
+                        className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+                        title={team}
                       >
-                        {member}
+                        {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
                       </span>
                     ))}
                   </div>
