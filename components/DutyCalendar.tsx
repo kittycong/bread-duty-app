@@ -2,11 +2,22 @@
 
 import { useMemo, useState } from "react";
 import { getPublicHoliday } from "@/lib/holidays";
-import type { DutyAssignment } from "@/types";
+import { teamNames } from "@/lib/employees";
+import type { DutyAssignment, TeamName } from "@/types";
+
+type AssignmentUpdate = {
+  date: string;
+  pickupMembers: string[];
+};
 
 type DutyCalendarProps = {
   assignments: DutyAssignment[];
-  onAssignmentMembersChange: (date: string, pickupMembers: string[]) => void;
+  onAssignmentMembersChange: (updates: AssignmentUpdate[]) => void;
+};
+
+type TeamSwapTarget = {
+  assignment: DutyAssignment;
+  member: string;
 };
 
 const weekHeaders = ["일", "월", "화", "수", "목", "금", "토"];
@@ -31,22 +42,69 @@ function getMonthCells(year: number, month: number) {
   return cells;
 }
 
-function moveMember(members: string[], index: number, direction: -1 | 1) {
-  const nextIndex = index + direction;
-  if (nextIndex < 0 || nextIndex >= members.length) {
-    return members;
+function getActiveTeams(assignment: DutyAssignment): TeamName[] {
+  return teamNames.filter((team) => team !== assignment.backupTeam);
+}
+
+function getTeamMemberIndex(assignment: DutyAssignment, team: TeamName) {
+  const teamIndex = getActiveTeams(assignment).indexOf(team);
+  return teamIndex < 0 ? -1 : teamIndex + 1;
+}
+
+function getTeamMember(assignment: DutyAssignment, team: TeamName) {
+  const memberIndex = getTeamMemberIndex(assignment, team);
+  return memberIndex < 0 ? undefined : assignment.pickupMembers[memberIndex];
+}
+
+function swapTeamMembers(
+  currentAssignment: DutyAssignment,
+  targetAssignment: DutyAssignment,
+  team: TeamName
+): AssignmentUpdate[] {
+  const currentIndex = getTeamMemberIndex(currentAssignment, team);
+  const targetIndex = getTeamMemberIndex(targetAssignment, team);
+
+  if (currentIndex < 0 || targetIndex < 0) {
+    return [];
   }
 
-  const nextMembers = [...members];
-  const [member] = nextMembers.splice(index, 1);
-  nextMembers.splice(nextIndex, 0, member);
-  return nextMembers;
+  const nextCurrentMembers = [...currentAssignment.pickupMembers];
+  const nextTargetMembers = [...targetAssignment.pickupMembers];
+  const currentMember = nextCurrentMembers[currentIndex];
+  const targetMember = nextTargetMembers[targetIndex];
+
+  nextCurrentMembers[currentIndex] = targetMember;
+  nextTargetMembers[targetIndex] = currentMember;
+
+  return [
+    { date: currentAssignment.date, pickupMembers: nextCurrentMembers },
+    { date: targetAssignment.date, pickupMembers: nextTargetMembers }
+  ];
+}
+
+function findSwapTarget(
+  assignments: DutyAssignment[],
+  selectedAssignment: DutyAssignment,
+  team: TeamName,
+  direction: -1 | 1
+): TeamSwapTarget | undefined {
+  const selectedIndex = assignments.findIndex((assignment) => assignment.date === selectedAssignment.date);
+
+  for (let index = selectedIndex + direction; index >= 0 && index < assignments.length; index += direction) {
+    const assignment = assignments[index];
+    const member = getTeamMember(assignment, team);
+
+    if (member) {
+      return { assignment, member };
+    }
+  }
+
+  return undefined;
 }
 
 export default function DutyCalendar({ assignments, onAssignmentMembersChange }: DutyCalendarProps) {
   const [monthIndex, setMonthIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
-  const [draftMembers, setDraftMembers] = useState<string[]>([]);
   const assignmentMap = useMemo(
     () => new Map(assignments.map((assignment) => [assignment.date, assignment])),
     [assignments]
@@ -66,24 +124,23 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
   }, [assignments]);
   const currentMonth = months[monthIndex] ?? { year: 2026, month: 5 };
   const cells = getMonthCells(currentMonth.year, currentMonth.month);
-
-  function openAssignment(assignment: DutyAssignment) {
-    setSelectedAssignment(assignment);
-    setDraftMembers(assignment.pickupMembers);
-  }
+  const latestSelectedAssignment = selectedAssignment
+    ? assignments.find((assignment) => assignment.date === selectedAssignment.date) ?? selectedAssignment
+    : null;
 
   function closeAssignment() {
     setSelectedAssignment(null);
-    setDraftMembers([]);
   }
 
-  function saveAssignmentOrder() {
-    if (!selectedAssignment) {
+  function swapWithTarget(team: TeamName, target: TeamSwapTarget) {
+    if (!latestSelectedAssignment) {
       return;
     }
 
-    onAssignmentMembersChange(selectedAssignment.date, draftMembers);
-    closeAssignment();
+    const updates = swapTeamMembers(latestSelectedAssignment, target.assignment, team);
+    if (updates.length > 0) {
+      onAssignmentMembersChange(updates);
+    }
   }
 
   return (
@@ -94,7 +151,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
             {currentMonth.year}년 {currentMonth.month}월 달력형 당번표
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            수요일 기준, 공휴일은 목요일 표시. 당번 카드를 누르면 크게 보고 순서를 바꿀 수 있습니다.
+            수요일 기준, 공휴일은 목요일 표시. 날짜를 누르면 같은 팀 안에서 이전/다음 담당 주차와 교체할 수 있습니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -162,7 +219,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                       {assignment ? (
                         <button
                           type="button"
-                          onClick={() => openAssignment(assignment)}
+                          onClick={() => setSelectedAssignment(assignment)}
                           className="mt-2 block w-full rounded-md border border-amber-200 bg-amber-50 p-2 text-left text-amber-950 transition hover:border-amber-300 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-600"
                         >
                           <div className="flex items-center justify-between gap-2">
@@ -193,16 +250,16 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
         </article>
       </div>
 
-      {selectedAssignment ? (
+      {latestSelectedAssignment ? (
         <div className="fixed inset-0 z-50 flex items-end bg-stone-950/50 p-3 sm:items-center sm:justify-center">
-          <div className="max-h-[90vh] w-full overflow-y-auto rounded-md bg-white p-5 shadow-xl sm:max-w-lg">
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-md bg-white p-5 shadow-xl sm:max-w-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-amber-700">{selectedAssignment.dateLabel}</p>
+                <p className="text-sm font-semibold text-amber-700">{latestSelectedAssignment.dateLabel}</p>
                 <h3 className="mt-1 text-xl font-bold text-stone-950">
-                  {selectedAssignment.week}주차 당번 상세
+                  {latestSelectedAssignment.week}주차 팀별 순서 조정
                 </h3>
-                <p className="mt-1 text-sm text-stone-600">백업팀: {selectedAssignment.backupTeam}</p>
+                <p className="mt-1 text-sm text-stone-600">백업팀: {latestSelectedAssignment.backupTeam}</p>
               </div>
               <button
                 type="button"
@@ -213,53 +270,60 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
               </button>
             </div>
 
-            <ol className="mt-5 space-y-2">
-              {draftMembers.map((member, index) => (
-                <li
-                  key={`${member}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50 p-3"
-                >
-                  <div>
-                    <div className="text-xs font-semibold text-stone-500">{index + 1}순위</div>
-                    <div className="mt-0.5 font-bold text-stone-950">{member}</div>
-                  </div>
-                  <div className="flex rounded-md border border-stone-200 bg-white p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setDraftMembers((members) => moveMember(members, index, -1))}
-                      disabled={index === 0}
-                      className="h-8 rounded px-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
-                    >
-                      위
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDraftMembers((members) => moveMember(members, index, 1))}
-                      disabled={index === draftMembers.length - 1}
-                      className="h-8 rounded px-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
-                    >
-                      아래
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <div className="mt-4 rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
+              근로지원인은 고정입니다. 각 팀 담당자는 같은 팀의 이전/다음 담당 주차와만 교체됩니다.
+            </div>
 
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={closeAssignment}
-                className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={saveAssignmentOrder}
-                className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
-              >
-                이 날짜 순서 저장
-              </button>
+            <div className="mt-5 space-y-3">
+              <div className="rounded-md border border-stone-200 bg-white p-3">
+                <div className="text-xs font-semibold text-stone-500">고정 담당</div>
+                <div className="mt-1 font-bold text-stone-950">{latestSelectedAssignment.pickupMembers[0]}</div>
+              </div>
+
+              {getActiveTeams(latestSelectedAssignment).map((team) => {
+                const currentMember = getTeamMember(latestSelectedAssignment, team);
+                const previousTarget = findSwapTarget(assignments, latestSelectedAssignment, team, -1);
+                const nextTarget = findSwapTarget(assignments, latestSelectedAssignment, team, 1);
+
+                return (
+                  <section key={team} className="rounded-md border border-stone-200 bg-white p-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-xs font-semibold text-stone-500">{team}</div>
+                        <div className="mt-1 text-lg font-bold text-stone-950">{currentMember}</div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => previousTarget && swapWithTarget(team, previousTarget)}
+                          disabled={!previousTarget}
+                          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+                        >
+                          <span className="block">이전 담당 주차와 교체</span>
+                          <span className="mt-1 block font-normal">
+                            {previousTarget
+                              ? `${previousTarget.assignment.week}주차 ${previousTarget.member}`
+                              : "교체 가능 주차 없음"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => nextTarget && swapWithTarget(team, nextTarget)}
+                          disabled={!nextTarget}
+                          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+                        >
+                          <span className="block">다음 담당 주차와 교체</span>
+                          <span className="mt-1 block font-normal">
+                            {nextTarget
+                              ? `${nextTarget.assignment.week}주차 ${nextTarget.member}`
+                              : "교체 가능 주차 없음"}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })}
             </div>
           </div>
         </div>

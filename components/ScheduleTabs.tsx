@@ -21,6 +21,10 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"];
 type AssignmentOverrides = Record<string, string[]>;
+type AssignmentUpdate = {
+  date: string;
+  pickupMembers: string[];
+};
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
@@ -63,12 +67,12 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
     }));
   }, [assignmentOverrides, endDate, employeeOrder, startDate]);
 
-  function updateAssignmentMembers(date: string, pickupMembers: string[]) {
+  function updateAssignmentMembers(updates: AssignmentUpdate[]) {
     setAssignmentOverrides((currentOverrides) => {
-      const nextOverrides = {
-        ...currentOverrides,
-        [date]: pickupMembers
-      };
+      const nextOverrides = { ...currentOverrides };
+      updates.forEach((update) => {
+        nextOverrides[update.date] = update.pickupMembers;
+      });
       window.localStorage.setItem("bread-duty-assignment-overrides", JSON.stringify(nextOverrides));
       return nextOverrides;
     });
