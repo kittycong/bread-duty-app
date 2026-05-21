@@ -5,6 +5,8 @@ export type Employee = {
   name: string;
   team: TeamName;
   status: "active" | "retired";
+  effectiveFrom: string;
+  retiredFrom?: string;
   replacementFor?: string;
 };
 

@@ -23,7 +23,22 @@ type TabId = (typeof tabs)[number]["id"];
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
-  const [employeeOrder, setEmployeeOrder] = useState<Employee[]>(initialEmployees);
+  const [employeeOrder, setEmployeeOrder] = useState<Employee[]>(() => {
+    if (typeof window === "undefined") {
+      return initialEmployees;
+    }
+
+    const savedEmployees = window.localStorage.getItem("bread-duty-employees");
+    if (!savedEmployees) {
+      return initialEmployees;
+    }
+
+    try {
+      return JSON.parse(savedEmployees) as Employee[];
+    } catch {
+      return initialEmployees;
+    }
+  });
   const assignments = useMemo(
     () => generateScheduleUntil(startDate, endDate, employeeOrder),
     [endDate, employeeOrder, startDate]
@@ -51,7 +66,11 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       {activeTab === "table" ? <DutyTable assignments={assignments} /> : null}
       {activeTab === "calendar" ? <DutyCalendar assignments={assignments} /> : null}
       {activeTab === "employees" ? (
-        <EmployeeRoster employees={employeeOrder} onEmployeesChange={setEmployeeOrder} />
+        <EmployeeRoster
+          employees={employeeOrder}
+          onEmployeesChange={setEmployeeOrder}
+          startDate={startDate}
+        />
       ) : null}
     </div>
   );

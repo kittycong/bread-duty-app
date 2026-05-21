@@ -57,16 +57,32 @@ function getActiveEmployeesByTeamFromRoster(roster: Employee[], team: TeamName):
   return roster.filter((employee) => employee.team === team && employee.status === "active");
 }
 
+function isEmployeeActiveOnDate(employee: Employee, date: string) {
+  return (
+    employee.status === "active" &&
+    employee.effectiveFrom <= date &&
+    (!employee.retiredFrom || date < employee.retiredFrom)
+  );
+}
+
+function getActiveEmployeesByTeamOnDate(roster: Employee[], team: TeamName, date: string): Employee[] {
+  return roster.filter((employee) => employee.team === team && isEmployeeActiveOnDate(employee, date));
+}
+
 export function generatePickupMembers(
   backupTeam: TeamName,
   weekIndex = 0,
-  roster: Employee[] = employees
+  roster: Employee[] = employees,
+  date = "0000-00-00"
 ): string[] {
   const activeTeams = teamNames.filter((team) => team !== backupTeam);
   const members = ["근로지원인"];
 
   activeTeams.forEach((team) => {
-    const list = getActiveEmployeesByTeamFromRoster(roster, team);
+    const list =
+      date === "0000-00-00"
+        ? getActiveEmployeesByTeamFromRoster(roster, team)
+        : getActiveEmployeesByTeamOnDate(roster, team, date);
     const index = weekIndex % list.length;
     members.push(list[index]?.name ?? `${team} 담당자 미지정`);
   });
@@ -80,7 +96,7 @@ export function generateDuty(
   weekIndex = 0,
   roster: Employee[] = employees
 ): string[] {
-  return generatePickupMembers(backupTeam, weekIndex, roster);
+  return generatePickupMembers(backupTeam, weekIndex, roster, _date);
 }
 
 export function generateSchedule(
