@@ -30,3 +30,12 @@ export type DutyAssignment = {
   holidayName?: string;
   movedFrom?: string;
 };
+
+export type AssignmentOverrides = Record<string, Partial<Record<TeamName, string>>>;
+
+export type SharedDutySettings = {
+  assignmentOverrides: AssignmentOverrides;
+  employees: Employee[];
+  workerSupport: WorkerSupport;
+  updatedAt?: string;
+};

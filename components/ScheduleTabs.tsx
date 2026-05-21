@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
 import { defaultWorkerSupport, generateScheduleUntil } from "@/utils/dutyGenerator";
-import type { Employee, TeamName, WorkerSupport } from "@/types";
+import type { AssignmentOverrides, Employee, SharedDutySettings, TeamName, WorkerSupport } from "@/types";
 
 type ScheduleTabsProps = {
   endDate: string;
@@ -20,7 +20,6 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
-type AssignmentOverrides = Record<string, Partial<Record<TeamName, string>>>;
 type AssignmentUpdate = {
   date: string;
   member: string;
@@ -28,6 +27,7 @@ type AssignmentUpdate = {
 };
 const assignmentOverrideStorageKey = "bread-duty-team-assignment-overrides-v2";
 const employeeStorageKey = "bread-duty-employees";
+const workerSupportStorageKey = "bread-duty-worker-support";
 const oldDefaultAdminOrder = ["최수연", "조승민", "노현숙", "김휘원"];
 const currentDefaultAdminOrder = ["최수연", "김휘원", "노현숙", "조승민"];
 
@@ -54,6 +54,8 @@ function migrateDefaultAdminOrder(savedEmployees: Employee[], initialEmployees: 
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
+  const [isSharedStorageReady, setIsSharedStorageReady] = useState(false);
+  const [storageMessage, setStorageMessage] = useState("공동 저장 설정을 확인하는 중입니다.");
   const [employeeOrder, setEmployeeOrder] = useState<Employee[]>(() => {
     if (typeof window === "undefined") {
       return initialEmployees;
@@ -99,7 +101,7 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       return defaultWorkerSupport;
     }
 
-    const savedWorkerSupport = window.localStorage.getItem("bread-duty-worker-support");
+    const savedWorkerSupport = window.localStorage.getItem(workerSupportStorageKey);
     if (!savedWorkerSupport) {
       return defaultWorkerSupport;
     }
@@ -132,6 +134,123 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
     });
   }, [assignmentOverrides, endDate, employeeOrder, startDate, workerSupport]);
 
+  function getCurrentSettings(
+    nextEmployees = employeeOrder,
+    nextWorkerSupport = workerSupport,
+    nextAssignmentOverrides = assignmentOverrides
+  ): SharedDutySettings {
+    return {
+      assignmentOverrides: nextAssignmentOverrides,
+      employees: nextEmployees,
+      workerSupport: nextWorkerSupport
+    };
+  }
+
+  function saveLocalSettings(settings: SharedDutySettings) {
+    window.localStorage.setItem(employeeStorageKey, JSON.stringify(settings.employees));
+    window.localStorage.setItem(workerSupportStorageKey, JSON.stringify(settings.workerSupport));
+    window.localStorage.setItem(assignmentOverrideStorageKey, JSON.stringify(settings.assignmentOverrides));
+  }
+
+  async function saveSharedSettings(settings: SharedDutySettings) {
+    saveLocalSettings(settings);
+
+    const response = await fetch("/api/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? "공동 저장에 실패했습니다.");
+    }
+
+    const data = (await response.json()) as { settings: SharedDutySettings; shared: boolean };
+    setIsSharedStorageReady(data.shared);
+    setStorageMessage(data.shared ? "공동 저장이 연결되었습니다." : "이 브라우저에만 저장됩니다.");
+    return data.settings;
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSharedSettings() {
+      try {
+        const response = await fetch("/api/settings", { cache: "no-store" });
+        const data = (await response.json()) as {
+          error?: string;
+          settings: SharedDutySettings | null;
+          shared: boolean;
+        };
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!response.ok || !data.shared) {
+          setIsSharedStorageReady(false);
+          setStorageMessage("Supabase 공동 저장이 아직 연결되지 않아 이 브라우저에만 저장됩니다.");
+          return;
+        }
+
+        setIsSharedStorageReady(true);
+        setStorageMessage("공동 저장이 연결되었습니다.");
+
+        if (data.settings) {
+          setEmployeeOrder(migrateDefaultAdminOrder(data.settings.employees, initialEmployees));
+          setWorkerSupport(data.settings.workerSupport);
+          setAssignmentOverrides(data.settings.assignmentOverrides ?? {});
+          saveLocalSettings(data.settings);
+        }
+      } catch {
+        if (isMounted) {
+          setIsSharedStorageReady(false);
+          setStorageMessage("공동 저장을 불러오지 못해 이 브라우저의 저장값을 사용합니다.");
+        }
+      }
+    }
+
+    loadSharedSettings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [initialEmployees]);
+
+  async function saveRosterSettings(nextEmployees: Employee[], nextWorkerSupport: WorkerSupport) {
+    const settings = getCurrentSettings(nextEmployees, nextWorkerSupport);
+
+    if (!isSharedStorageReady) {
+      saveLocalSettings(settings);
+      setEmployeeOrder(nextEmployees);
+      setWorkerSupport(nextWorkerSupport);
+      setStorageMessage("Supabase 연결 전이라 이 브라우저에만 저장했습니다.");
+      return;
+    }
+
+    const savedSettings = await saveSharedSettings(settings);
+    setEmployeeOrder(savedSettings.employees);
+    setWorkerSupport(savedSettings.workerSupport);
+    setAssignmentOverrides(savedSettings.assignmentOverrides ?? {});
+  }
+
+  function resetRosterSettings() {
+    window.localStorage.removeItem(employeeStorageKey);
+    window.localStorage.removeItem(workerSupportStorageKey);
+    window.localStorage.removeItem(assignmentOverrideStorageKey);
+    setEmployeeOrder(initialEmployees);
+    setWorkerSupport(defaultWorkerSupport);
+    setAssignmentOverrides({});
+    setStorageMessage(
+      isSharedStorageReady
+        ? "이 브라우저 저장값을 초기화했습니다. 공동 저장값을 바꾸려면 설정 저장을 누르세요."
+        : "이 브라우저 저장값을 초기화했습니다."
+    );
+  }
+
   function updateAssignmentMembers(updates: AssignmentUpdate[]) {
     setAssignmentOverrides((currentOverrides) => {
       const nextOverrides = { ...currentOverrides };
@@ -141,7 +260,13 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
           [update.team]: update.member
         };
       });
-      window.localStorage.setItem(assignmentOverrideStorageKey, JSON.stringify(nextOverrides));
+      const nextSettings = getCurrentSettings(employeeOrder, workerSupport, nextOverrides);
+      saveLocalSettings(nextSettings);
+      if (isSharedStorageReady) {
+        saveSharedSettings(nextSettings).catch(() => {
+          setStorageMessage("당번 변경을 공동 저장하지 못했습니다. 이 브라우저에는 저장됐습니다.");
+        });
+      }
       return nextOverrides;
     });
   }
@@ -172,9 +297,13 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       {activeTab === "employees" ? (
         <EmployeeRoster
           employees={employeeOrder}
+          isSharedStorageReady={isSharedStorageReady}
           onEmployeesChange={setEmployeeOrder}
+          onResetSettings={resetRosterSettings}
+          onSaveSettings={saveRosterSettings}
           onWorkerSupportChange={setWorkerSupport}
           startDate={startDate}
+          storageMessage={storageMessage}
           workerSupport={workerSupport}
         />
       ) : null}

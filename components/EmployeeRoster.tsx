@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { teamNames } from "@/lib/employees";
 import type { Employee, TeamName, WorkerSupport } from "@/types";
 
 type EmployeeRosterProps = {
   employees: Employee[];
+  isSharedStorageReady: boolean;
   onEmployeesChange: (employees: Employee[]) => void;
+  onResetSettings: () => void;
+  onSaveSettings: (employees: Employee[], workerSupport: WorkerSupport) => Promise<void>;
   onWorkerSupportChange: (workerSupport: WorkerSupport) => void;
   startDate: string;
+  storageMessage: string;
   workerSupport: WorkerSupport;
 };
 
-const storageKey = "bread-duty-employees";
-const workerSupportStorageKey = "bread-duty-worker-support";
 const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "bread2026";
 
 function createEmployeeId(name: string, team: TeamName) {
@@ -23,9 +25,13 @@ function createEmployeeId(name: string, team: TeamName) {
 
 export default function EmployeeRoster({
   employees,
+  isSharedStorageReady,
   onEmployeesChange,
+  onResetSettings,
+  onSaveSettings,
   onWorkerSupportChange,
   startDate,
+  storageMessage,
   workerSupport
 }: EmployeeRosterProps) {
   const [password, setPassword] = useState("");
@@ -35,6 +41,11 @@ export default function EmployeeRoster({
   const [newTeam, setNewTeam] = useState<TeamName>("사무행정팀");
   const [effectiveFrom, setEffectiveFrom] = useState(startDate);
   const [workerSupportName, setWorkerSupportName] = useState(workerSupport.name);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setWorkerSupportName(workerSupport.name);
+  }, [workerSupport.name]);
 
   function unlockAdmin() {
     if (password === adminPassword) {
@@ -46,17 +57,29 @@ export default function EmployeeRoster({
     setMessage("비밀번호가 맞지 않습니다.");
   }
 
-  function saveSettings() {
-    window.localStorage.setItem(storageKey, JSON.stringify(employees));
-    window.localStorage.setItem(workerSupportStorageKey, JSON.stringify({ name: workerSupportName }));
-    onWorkerSupportChange({ name: workerSupportName });
-    setMessage("직원 및 근로지원인 설정을 저장했습니다.");
+  async function saveSettings() {
+    const nextWorkerSupport = { name: workerSupportName };
+    setIsSaving(true);
+    setMessage("설정을 저장하는 중입니다.");
+
+    try {
+      await onSaveSettings(employees, nextWorkerSupport);
+      onWorkerSupportChange(nextWorkerSupport);
+      setMessage(
+        isSharedStorageReady
+          ? "직원 및 근로지원인 설정을 공동 저장했습니다."
+          : "Supabase 연결 전이라 이 브라우저에만 저장했습니다."
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "설정 저장에 실패했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function resetSettings() {
-    window.localStorage.removeItem(storageKey);
-    window.localStorage.removeItem(workerSupportStorageKey);
-    window.location.reload();
+    onResetSettings();
+    setMessage("설정을 초기화했습니다.");
   }
 
   function updateEmployees(nextEmployees: Employee[]) {
@@ -159,9 +182,10 @@ export default function EmployeeRoster({
               <button
                 type="button"
                 onClick={saveSettings}
+                disabled={isSaving}
                 className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
               >
-                설정 저장
+                {isSaving ? "저장 중" : "설정 저장"}
               </button>
               <button
                 type="button"
@@ -173,6 +197,7 @@ export default function EmployeeRoster({
             </div>
           )}
         </div>
+        <p className="mt-3 text-sm font-semibold text-stone-600">{storageMessage}</p>
         {message ? <p className="mt-3 text-sm font-semibold text-amber-700">{message}</p> : null}
       </section>
 
@@ -203,9 +228,10 @@ export default function EmployeeRoster({
             <button
               type="button"
               onClick={saveSettings}
+              disabled={isSaving}
               className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
             >
-              근로지원인 설정 저장
+              {isSaving ? "저장 중" : "근로지원인 설정 저장"}
             </button>
           </div>
           <p className="mt-2 text-sm text-stone-600">
