@@ -3,7 +3,7 @@ import { employees, teamNames } from "@/lib/employees";
 import { getPublicHoliday } from "@/lib/holidays";
 import type { Employee, WorkerSupport } from "@/types";
 
-export const backupCycle: TeamName[] = ["활동지원팀", "복지사업팀", "사무행정팀"];
+export const backupCycle: TeamName[] = ["사무행정팀", "활동지원팀", "복지사업팀"];
 export const defaultWorkerSupport: WorkerSupport = { name: "근로지원인" };
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
