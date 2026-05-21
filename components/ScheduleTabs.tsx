@@ -20,6 +20,7 @@ const tabs = [
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
+type AssignmentOverrides = Record<string, string[]>;
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
@@ -39,10 +40,39 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       return initialEmployees;
     }
   });
-  const assignments = useMemo(
-    () => generateScheduleUntil(startDate, endDate, employeeOrder),
-    [endDate, employeeOrder, startDate]
-  );
+  const [assignmentOverrides, setAssignmentOverrides] = useState<AssignmentOverrides>(() => {
+    if (typeof window === "undefined") {
+      return {};
+    }
+
+    const savedOverrides = window.localStorage.getItem("bread-duty-assignment-overrides");
+    if (!savedOverrides) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(savedOverrides) as AssignmentOverrides;
+    } catch {
+      return {};
+    }
+  });
+  const assignments = useMemo(() => {
+    return generateScheduleUntil(startDate, endDate, employeeOrder).map((assignment) => ({
+      ...assignment,
+      pickupMembers: assignmentOverrides[assignment.date] ?? assignment.pickupMembers
+    }));
+  }, [assignmentOverrides, endDate, employeeOrder, startDate]);
+
+  function updateAssignmentMembers(date: string, pickupMembers: string[]) {
+    setAssignmentOverrides((currentOverrides) => {
+      const nextOverrides = {
+        ...currentOverrides,
+        [date]: pickupMembers
+      };
+      window.localStorage.setItem("bread-duty-assignment-overrides", JSON.stringify(nextOverrides));
+      return nextOverrides;
+    });
+  }
 
   return (
     <div className="space-y-4">
@@ -64,7 +94,9 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       </div>
 
       {activeTab === "table" ? <DutyTable assignments={assignments} /> : null}
-      {activeTab === "calendar" ? <DutyCalendar assignments={assignments} /> : null}
+      {activeTab === "calendar" ? (
+        <DutyCalendar assignments={assignments} onAssignmentMembersChange={updateAssignmentMembers} />
+      ) : null}
       {activeTab === "employees" ? (
         <EmployeeRoster
           employees={employeeOrder}
