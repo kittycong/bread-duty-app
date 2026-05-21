@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
-import { generateScheduleUntil } from "@/utils/dutyGenerator";
-import type { Employee } from "@/types";
+import { defaultWorkerSupport, generateScheduleUntil } from "@/utils/dutyGenerator";
+import type { Employee, WorkerSupport } from "@/types";
 
 type ScheduleTabsProps = {
   endDate: string;
@@ -60,12 +60,28 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       return {};
     }
   });
+  const [workerSupport, setWorkerSupport] = useState<WorkerSupport>(() => {
+    if (typeof window === "undefined") {
+      return defaultWorkerSupport;
+    }
+
+    const savedWorkerSupport = window.localStorage.getItem("bread-duty-worker-support");
+    if (!savedWorkerSupport) {
+      return defaultWorkerSupport;
+    }
+
+    try {
+      return JSON.parse(savedWorkerSupport) as WorkerSupport;
+    } catch {
+      return defaultWorkerSupport;
+    }
+  });
   const assignments = useMemo(() => {
-    return generateScheduleUntil(startDate, endDate, employeeOrder).map((assignment) => ({
+    return generateScheduleUntil(startDate, endDate, employeeOrder, workerSupport).map((assignment) => ({
       ...assignment,
       pickupMembers: assignmentOverrides[assignment.date] ?? assignment.pickupMembers
     }));
-  }, [assignmentOverrides, endDate, employeeOrder, startDate]);
+  }, [assignmentOverrides, endDate, employeeOrder, startDate, workerSupport]);
 
   function updateAssignmentMembers(updates: AssignmentUpdate[]) {
     setAssignmentOverrides((currentOverrides) => {
@@ -105,7 +121,9 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
         <EmployeeRoster
           employees={employeeOrder}
           onEmployeesChange={setEmployeeOrder}
+          onWorkerSupportChange={setWorkerSupport}
           startDate={startDate}
+          workerSupport={workerSupport}
         />
       ) : null}
     </div>

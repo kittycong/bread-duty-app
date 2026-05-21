@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { teamNames } from "@/lib/employees";
-import type { Employee, TeamName } from "@/types";
+import type { Employee, TeamName, WorkerSupport } from "@/types";
 
 type EmployeeRosterProps = {
   employees: Employee[];
   onEmployeesChange: (employees: Employee[]) => void;
+  onWorkerSupportChange: (workerSupport: WorkerSupport) => void;
   startDate: string;
+  workerSupport: WorkerSupport;
 };
 
 const storageKey = "bread-duty-employees";
+const workerSupportStorageKey = "bread-duty-worker-support";
 const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "bread2026";
 
 function createEmployeeId(name: string, team: TeamName) {
@@ -18,13 +21,20 @@ function createEmployeeId(name: string, team: TeamName) {
   return `${team}-${normalizedName}-${Date.now()}`;
 }
 
-export default function EmployeeRoster({ employees, onEmployeesChange, startDate }: EmployeeRosterProps) {
+export default function EmployeeRoster({
+  employees,
+  onEmployeesChange,
+  onWorkerSupportChange,
+  startDate,
+  workerSupport
+}: EmployeeRosterProps) {
   const [password, setPassword] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [message, setMessage] = useState("");
   const [newName, setNewName] = useState("");
   const [newTeam, setNewTeam] = useState<TeamName>("사무행정팀");
   const [effectiveFrom, setEffectiveFrom] = useState(startDate);
+  const [workerSupportName, setWorkerSupportName] = useState(workerSupport.name);
 
   function unlockAdmin() {
     if (password === adminPassword) {
@@ -38,11 +48,14 @@ export default function EmployeeRoster({ employees, onEmployeesChange, startDate
 
   function saveSettings() {
     window.localStorage.setItem(storageKey, JSON.stringify(employees));
-    setMessage("직원 설정을 저장했습니다.");
+    window.localStorage.setItem(workerSupportStorageKey, JSON.stringify({ name: workerSupportName }));
+    onWorkerSupportChange({ name: workerSupportName });
+    setMessage("직원 및 근로지원인 설정을 저장했습니다.");
   }
 
   function resetSettings() {
     window.localStorage.removeItem(storageKey);
+    window.localStorage.removeItem(workerSupportStorageKey);
     window.location.reload();
   }
 
@@ -168,6 +181,35 @@ export default function EmployeeRoster({ employees, onEmployeesChange, startDate
           <h2 className="text-base font-bold text-stone-950">직원 명단 관리 잠김</h2>
           <p className="mt-2 text-sm text-stone-600">
             직원 순서 변경, 추가, 삭제, 저장 메뉴는 관리자 비밀번호 입력 후 표시됩니다.
+          </p>
+        </section>
+      ) : null}
+
+      {isAdmin ? (
+        <section className="rounded-md border border-stone-200 bg-white p-4">
+          <h2 className="text-base font-bold text-stone-950">근로지원인 백업 설정</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
+            <input
+              type="text"
+              value={workerSupportName}
+              onChange={(event) => {
+                setWorkerSupportName(event.target.value);
+                onWorkerSupportChange({ name: event.target.value });
+                setMessage("근로지원인 설정이 아직 저장되지 않았습니다.");
+              }}
+              placeholder="근로지원인 표시명"
+              className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={saveSettings}
+              className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+            >
+              근로지원인 설정 저장
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-stone-600">
+            입력한 이름은 모든 당번표의 첫 번째 백업 담당으로 표시됩니다.
           </p>
         </section>
       ) : null}

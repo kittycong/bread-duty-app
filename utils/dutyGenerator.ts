@@ -1,9 +1,10 @@
 import type { DutyAssignment, TeamName } from "@/types";
 import { employees, teamNames } from "@/lib/employees";
 import { getPublicHoliday } from "@/lib/holidays";
-import type { Employee } from "@/types";
+import type { Employee, WorkerSupport } from "@/types";
 
 export const backupCycle: TeamName[] = ["활동지원팀", "복지사업팀", "사무행정팀"];
+export const defaultWorkerSupport: WorkerSupport = { name: "근로지원인" };
 const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
 
 function parseDate(date: string): Date {
@@ -73,10 +74,11 @@ export function generatePickupMembers(
   backupTeam: TeamName,
   weekIndex = 0,
   roster: Employee[] = employees,
-  date = "0000-00-00"
+  date = "0000-00-00",
+  workerSupport: WorkerSupport = defaultWorkerSupport
 ): string[] {
   const activeTeams = teamNames.filter((team) => team !== backupTeam);
-  const members = ["근로지원인"];
+  const members = [workerSupport.name || defaultWorkerSupport.name];
 
   activeTeams.forEach((team) => {
     const list =
@@ -94,15 +96,17 @@ export function generateDuty(
   _date: string,
   backupTeam: TeamName,
   weekIndex = 0,
-  roster: Employee[] = employees
+  roster: Employee[] = employees,
+  workerSupport: WorkerSupport = defaultWorkerSupport
 ): string[] {
-  return generatePickupMembers(backupTeam, weekIndex, roster, _date);
+  return generatePickupMembers(backupTeam, weekIndex, roster, _date, workerSupport);
 }
 
 export function generateSchedule(
   startDate: string,
   weeks: number,
-  roster: Employee[] = employees
+  roster: Employee[] = employees,
+  workerSupport: WorkerSupport = defaultWorkerSupport
 ): DutyAssignment[] {
   const schedule: DutyAssignment[] = [];
 
@@ -122,7 +126,7 @@ export function generateSchedule(
       day: dateParts.day,
       weekday: dateParts.weekday,
       backupTeam,
-      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i, roster),
+      pickupMembers: generateDuty(dateParts.dateText, backupTeam, i, roster, workerSupport),
       holidayName: moved.holidayName,
       movedFrom: moved.movedFrom
     });
@@ -134,11 +138,12 @@ export function generateSchedule(
 export function generateScheduleUntil(
   startDate: string,
   endDate: string,
-  roster: Employee[] = employees
+  roster: Employee[] = employees,
+  workerSupport: WorkerSupport = defaultWorkerSupport
 ): DutyAssignment[] {
   const start = parseDate(startDate);
   const end = parseDate(endDate);
   const weeks = Math.floor((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
 
-  return generateSchedule(startDate, weeks, roster).filter((assignment) => parseDate(assignment.date) <= end);
+  return generateSchedule(startDate, weeks, roster, workerSupport).filter((assignment) => parseDate(assignment.date) <= end);
 }

@@ -10,6 +10,10 @@ export type Employee = {
   replacementFor?: string;
 };
 
+export type WorkerSupport = {
+  name: string;
+};
+
 export type DutyAssignment = {
   week: number;
   date: string;
