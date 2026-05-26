@@ -11,8 +11,14 @@ type AssignmentUpdate = {
   team: TeamName;
 };
 
+type AssignmentDateUpdate = {
+  date: string;
+  week: number;
+};
+
 type DutyCalendarProps = {
   assignments: DutyAssignment[];
+  onAssignmentDatesChange: (updates: AssignmentDateUpdate[]) => void;
   onAssignmentMembersChange: (updates: AssignmentUpdate[]) => void;
 };
 
@@ -24,6 +30,11 @@ type TeamSwapTarget = {
 type DraggedTeamAssignment = {
   date: string;
   team: TeamName;
+};
+
+type DraggedDateAssignment = {
+  date: string;
+  week: number;
 };
 
 const weekHeaders = ["일", "월", "화", "수", "목", "금", "토"];
@@ -115,10 +126,15 @@ function findSwapTarget(
   return undefined;
 }
 
-export default function DutyCalendar({ assignments, onAssignmentMembersChange }: DutyCalendarProps) {
+export default function DutyCalendar({
+  assignments,
+  onAssignmentDatesChange,
+  onAssignmentMembersChange
+}: DutyCalendarProps) {
   const [monthIndex, setMonthIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
   const [todayKey, setTodayKey] = useState("");
+  const [draggedDateAssignment, setDraggedDateAssignment] = useState<DraggedDateAssignment | null>(null);
   const [draggedAssignment, setDraggedAssignment] = useState<DraggedTeamAssignment | null>(null);
   const assignmentMap = useMemo(
     () => new Map(assignments.map((assignment) => [assignment.date, assignment])),
@@ -187,6 +203,23 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
     setDraggedAssignment(null);
   }
 
+  function dropAssignmentOnDate(targetDate: string) {
+    if (!draggedDateAssignment || draggedDateAssignment.date === targetDate) {
+      setDraggedDateAssignment(null);
+      return;
+    }
+
+    const targetAssignment = assignmentMap.get(targetDate);
+    const updates: AssignmentDateUpdate[] = [{ week: draggedDateAssignment.week, date: targetDate }];
+
+    if (targetAssignment) {
+      updates.push({ week: targetAssignment.week, date: draggedDateAssignment.date });
+    }
+
+    onAssignmentDatesChange(updates);
+    setDraggedDateAssignment(null);
+  }
+
   return (
     <section aria-labelledby="calendar-month" className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -197,7 +230,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
               : `${currentMonth.year}년 ${currentMonth.month}월 달력형 당번표`}
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            당월과 다음 달을 함께 표시합니다. 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 순서가 교체됩니다.
+            당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 팀별 담당자는 같은 팀끼리 교체할 수 있습니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -249,15 +282,30 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                     const holidayName = dateKey ? getPublicHoliday(dateKey) : undefined;
                     const isToday = dateKey === todayKey;
                     const isTodayDuty = isToday && Boolean(assignment);
+                    const isDateDropTarget =
+                      Boolean(dateKey) && Boolean(draggedDateAssignment) && draggedDateAssignment?.date !== dateKey;
 
                     return (
                       <div
                         key={`${visibleMonth.year}-${visibleMonth.month}-${cellIndex}`}
+                        onDragOver={(event) => {
+                          if (dateKey && draggedDateAssignment) {
+                            event.preventDefault();
+                            event.dataTransfer.dropEffect = "move";
+                          }
+                        }}
+                        onDrop={(event) => {
+                          if (dateKey && draggedDateAssignment) {
+                            event.preventDefault();
+                            dropAssignmentOnDate(dateKey);
+                          }
+                        }}
                         className={
                           [
                             "min-h-36 border-b border-r p-2 text-xs",
                             holidayName ? "border-red-100 bg-red-50" : "border-stone-100",
-                            isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : ""
+                            isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : "",
+                            isDateDropTarget ? "bg-sky-50 ring-2 ring-sky-500 ring-inset" : ""
                           ].join(" ")
                         }
                       >
@@ -284,7 +332,15 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                               <div
                                 role="button"
                                 tabIndex={0}
+                                draggable
                                 onClick={() => setSelectedAssignment(assignment)}
+                                onDragStart={(event) => {
+                                  event.dataTransfer.effectAllowed = "move";
+                                  event.dataTransfer.setData("text/plain", `week:${assignment.week}`);
+                                  setDraggedDateAssignment({ week: assignment.week, date: assignment.date });
+                                  setDraggedAssignment(null);
+                                }}
+                                onDragEnd={() => setDraggedDateAssignment(null)}
                                 onKeyDown={(event) => {
                                   if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault();
@@ -295,8 +351,10 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                                   "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
                                   isTodayDuty
                                     ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
-                                    : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100"
+                                    : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100",
+                                  draggedDateAssignment?.week === assignment.week ? "opacity-60 ring-2 ring-sky-500" : ""
                                 ].join(" ")}
+                                title="당번 카드를 다른 날짜 칸으로 끌어 놓으면 일정 날짜가 변경됩니다."
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="font-semibold">{assignment.week}주차</span>
@@ -327,9 +385,11 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                                         draggable
                                         onClick={(event) => event.stopPropagation()}
                                         onDragStart={(event) => {
+                                          event.stopPropagation();
                                           event.dataTransfer.effectAllowed = "move";
                                           event.dataTransfer.setData("text/plain", `${assignment.date}|${team}`);
                                           setDraggedAssignment({ date: assignment.date, team });
+                                          setDraggedDateAssignment(null);
                                         }}
                                         onDragEnd={() => setDraggedAssignment(null)}
                                         onDragOver={(event) => {

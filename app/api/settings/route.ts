@@ -51,6 +51,7 @@ export async function PUT(request: Request) {
 
   const settings = (await request.json()) as SharedDutySettings;
   const nextSettings: SharedDutySettings = {
+    assignmentDateOverrides: settings.assignmentDateOverrides ?? {},
     assignmentOverrides: settings.assignmentOverrides ?? {},
     employees: settings.employees ?? [],
     workerSupport: settings.workerSupport ?? { name: "근로지원인" },
