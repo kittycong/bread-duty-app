@@ -138,7 +138,8 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
       });
   }, [assignments]);
   const currentMonth = months[monthIndex] ?? { year: 2026, month: 5 };
-  const cells = getMonthCells(currentMonth.year, currentMonth.month);
+  const nextMonth = months[monthIndex + 1];
+  const visibleMonths = nextMonth ? [currentMonth, nextMonth] : [currentMonth];
   const latestSelectedAssignment = selectedAssignment
     ? assignments.find((assignment) => assignment.date === selectedAssignment.date) ?? selectedAssignment
     : null;
@@ -191,10 +192,12 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="calendar-month" className="text-xl font-bold text-stone-950">
-            {currentMonth.year}년 {currentMonth.month}월 달력형 당번표
+            {nextMonth
+              ? `${currentMonth.year}년 ${currentMonth.month}월 - ${nextMonth.year}년 ${nextMonth.month}월 달력형 당번표`
+              : `${currentMonth.year}년 ${currentMonth.month}월 달력형 당번표`}
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            수요일 기준, 공휴일은 목요일 표시. 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 순서가 교체됩니다.
+            당월과 다음 달을 함께 표시합니다. 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 순서가 교체됩니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -217,141 +220,154 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-stone-200 bg-white">
-        <article className="min-w-[760px]">
-          <div className="grid grid-cols-7 border-b border-stone-100 bg-stone-50 text-center text-xs font-semibold text-stone-500">
-            {weekHeaders.map((header) => (
-              <div key={header} className="py-2">
-                {header}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7">
-            {cells.map((day, cellIndex) => {
-              const dateKey =
-                day === null
-                  ? ""
-                  : `${currentMonth.year}-${String(currentMonth.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-              const assignment = assignmentMap.get(dateKey);
-              const holidayName = dateKey ? getPublicHoliday(dateKey) : undefined;
-              const isToday = dateKey === todayKey;
-              const isTodayDuty = isToday && Boolean(assignment);
+      <div className="space-y-5">
+        {visibleMonths.map((visibleMonth) => {
+          const cells = getMonthCells(visibleMonth.year, visibleMonth.month);
 
-              return (
-                <div
-                  key={`${currentMonth.year}-${currentMonth.month}-${cellIndex}`}
-                  className={
-                    [
-                      "min-h-36 border-b border-r p-2 text-xs",
-                      holidayName ? "border-red-100 bg-red-50" : "border-stone-100",
-                      isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : ""
-                    ].join(" ")
-                  }
-                >
-                  {day === null ? null : (
-                    <>
-                      <div className="flex min-h-5 items-center justify-between gap-1">
-                        <span className="font-semibold text-stone-700">{day}</span>
-                        {isToday ? (
-                          <span className="rounded border border-stone-900 bg-stone-900 px-1 text-[10px] font-bold text-white">
-                            오늘
-                          </span>
-                        ) : holidayName ? (
-                          <span className="rounded border border-red-200 bg-white px-1 text-[10px] font-bold text-red-700">
-                            공휴일
-                          </span>
-                        ) : null}
-                      </div>
-                      {holidayName ? (
-                        <div className="mt-1 text-[11px] font-semibold leading-4 text-red-700">
-                          {holidayName}
-                        </div>
-                      ) : null}
-                      {assignment ? (
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => setSelectedAssignment(assignment)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              setSelectedAssignment(assignment);
-                            }
-                          }}
-                          className={[
-                            "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
-                            isTodayDuty
-                              ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
-                              : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100"
-                          ].join(" ")}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold">{assignment.week}주차</span>
-                            <span className="text-[11px] font-semibold">
-                              {isTodayDuty ? "오늘 당번" : assignment.backupTeam}
-                            </span>
-                          </div>
-                          {isTodayDuty ? (
-                            <div className="mt-1 text-[11px] font-bold text-stone-900">
-                              백업팀: {assignment.backupTeam}
-                            </div>
-                          ) : null}
-                          {assignment.holidayName ? (
-                            <div className="mt-1 font-semibold text-red-700">공휴일 다음 날</div>
-                          ) : null}
-                          <div className="mt-2 space-y-1">
-                            <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 font-semibold leading-4 text-stone-800">
-                              1. {assignment.workerSupportName}
-                            </div>
-                            {assignment.activeTeams.map((team, index) => {
-                              const member = assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`;
-                              const canDrop =
-                                draggedAssignment?.team === team && draggedAssignment.date !== assignment.date;
-
-                              return (
-                                <div
-                                  key={`${assignment.date}-${team}`}
-                                  draggable
-                                  onClick={(event) => event.stopPropagation()}
-                                  onDragStart={(event) => {
-                                    event.dataTransfer.effectAllowed = "move";
-                                    event.dataTransfer.setData("text/plain", `${assignment.date}|${team}`);
-                                    setDraggedAssignment({ date: assignment.date, team });
-                                  }}
-                                  onDragEnd={() => setDraggedAssignment(null)}
-                                  onDragOver={(event) => {
-                                    if (draggedAssignment?.team === team) {
-                                      event.preventDefault();
-                                      event.dataTransfer.dropEffect = "move";
-                                    }
-                                  }}
-                                  onDrop={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    dropOnTeamBadge(assignment.date, team);
-                                  }}
-                                  className={[
-                                    "rounded border px-2 py-1 font-semibold leading-4 transition",
-                                    "cursor-grab active:cursor-grabbing",
-                                    teamBadgeStyles[team],
-                                    canDrop ? `ring-2 ring-stone-900 ring-offset-1 ${teamDropStyles[team]}` : ""
-                                  ].join(" ")}
-                                  title={`${team} 담당자. 같은 팀 담당자에게 끌어 놓으면 교체됩니다.`}
-                                >
-                                  {index + 2}. {member}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ) : null}
-                    </>
-                  )}
+          return (
+            <div key={`${visibleMonth.year}-${visibleMonth.month}`} className="overflow-x-auto rounded-md border border-stone-200 bg-white">
+              <article className="min-w-[760px]">
+                <div className="border-b border-stone-200 bg-stone-50 px-3 py-2">
+                  <h3 className="text-base font-bold text-stone-950">
+                    {visibleMonth.year}년 {visibleMonth.month}월
+                  </h3>
                 </div>
-              );
-            })}
-          </div>
-        </article>
+                <div className="grid grid-cols-7 border-b border-stone-100 bg-stone-50 text-center text-xs font-semibold text-stone-500">
+                  {weekHeaders.map((header) => (
+                    <div key={header} className="py-2">
+                      {header}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7">
+                  {cells.map((day, cellIndex) => {
+                    const dateKey =
+                      day === null
+                        ? ""
+                        : `${visibleMonth.year}-${String(visibleMonth.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const assignment = assignmentMap.get(dateKey);
+                    const holidayName = dateKey ? getPublicHoliday(dateKey) : undefined;
+                    const isToday = dateKey === todayKey;
+                    const isTodayDuty = isToday && Boolean(assignment);
+
+                    return (
+                      <div
+                        key={`${visibleMonth.year}-${visibleMonth.month}-${cellIndex}`}
+                        className={
+                          [
+                            "min-h-36 border-b border-r p-2 text-xs",
+                            holidayName ? "border-red-100 bg-red-50" : "border-stone-100",
+                            isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : ""
+                          ].join(" ")
+                        }
+                      >
+                        {day === null ? null : (
+                          <>
+                            <div className="flex min-h-5 items-center justify-between gap-1">
+                              <span className="font-semibold text-stone-700">{day}</span>
+                              {isToday ? (
+                                <span className="rounded border border-stone-900 bg-stone-900 px-1 text-[10px] font-bold text-white">
+                                  오늘
+                                </span>
+                              ) : holidayName ? (
+                                <span className="rounded border border-red-200 bg-white px-1 text-[10px] font-bold text-red-700">
+                                  공휴일
+                                </span>
+                              ) : null}
+                            </div>
+                            {holidayName ? (
+                              <div className="mt-1 text-[11px] font-semibold leading-4 text-red-700">
+                                {holidayName}
+                              </div>
+                            ) : null}
+                            {assignment ? (
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setSelectedAssignment(assignment)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSelectedAssignment(assignment);
+                                  }
+                                }}
+                                className={[
+                                  "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
+                                  isTodayDuty
+                                    ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
+                                    : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100"
+                                ].join(" ")}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold">{assignment.week}주차</span>
+                                  <span className="text-[11px] font-semibold">
+                                    {isTodayDuty ? "오늘 당번" : assignment.backupTeam}
+                                  </span>
+                                </div>
+                                {isTodayDuty ? (
+                                  <div className="mt-1 text-[11px] font-bold text-stone-900">
+                                    백업팀: {assignment.backupTeam}
+                                  </div>
+                                ) : null}
+                                {assignment.holidayName ? (
+                                  <div className="mt-1 font-semibold text-red-700">공휴일 다음 날</div>
+                                ) : null}
+                                <div className="mt-2 space-y-1">
+                                  <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 font-semibold leading-4 text-stone-800">
+                                    1. {assignment.workerSupportName}
+                                  </div>
+                                  {assignment.activeTeams.map((team, index) => {
+                                    const member = assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`;
+                                    const canDrop =
+                                      draggedAssignment?.team === team && draggedAssignment.date !== assignment.date;
+
+                                    return (
+                                      <div
+                                        key={`${assignment.date}-${team}`}
+                                        draggable
+                                        onClick={(event) => event.stopPropagation()}
+                                        onDragStart={(event) => {
+                                          event.dataTransfer.effectAllowed = "move";
+                                          event.dataTransfer.setData("text/plain", `${assignment.date}|${team}`);
+                                          setDraggedAssignment({ date: assignment.date, team });
+                                        }}
+                                        onDragEnd={() => setDraggedAssignment(null)}
+                                        onDragOver={(event) => {
+                                          if (draggedAssignment?.team === team) {
+                                            event.preventDefault();
+                                            event.dataTransfer.dropEffect = "move";
+                                          }
+                                        }}
+                                        onDrop={(event) => {
+                                          event.preventDefault();
+                                          event.stopPropagation();
+                                          dropOnTeamBadge(assignment.date, team);
+                                        }}
+                                        className={[
+                                          "rounded border px-2 py-1 font-semibold leading-4 transition",
+                                          "cursor-grab active:cursor-grabbing",
+                                          teamBadgeStyles[team],
+                                          canDrop ? `ring-2 ring-stone-900 ring-offset-1 ${teamDropStyles[team]}` : ""
+                                        ].join(" ")}
+                                        title={`${team} 담당자. 같은 팀 담당자에게 끌어 놓으면 교체됩니다.`}
+                                      >
+                                        {index + 2}. {member}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            </div>
+          );
+        })}
       </div>
 
       {latestSelectedAssignment ? (
