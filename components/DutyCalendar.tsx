@@ -21,7 +21,24 @@ type TeamSwapTarget = {
   member: string;
 };
 
+type DraggedTeamAssignment = {
+  date: string;
+  team: TeamName;
+};
+
 const weekHeaders = ["일", "월", "화", "수", "목", "금", "토"];
+
+const teamBadgeStyles: Record<TeamName, string> = {
+  "사무행정팀": "border-pink-200 bg-pink-50 text-pink-900",
+  "활동지원팀": "border-lime-200 bg-lime-50 text-lime-900",
+  "복지사업팀": "border-yellow-200 bg-yellow-50 text-yellow-900"
+};
+
+const teamDropStyles: Record<TeamName, string> = {
+  "사무행정팀": "hover:border-pink-400 hover:bg-pink-100",
+  "활동지원팀": "hover:border-lime-400 hover:bg-lime-100",
+  "복지사업팀": "hover:border-yellow-400 hover:bg-yellow-100"
+};
 
 function getMonthCells(year: number, month: number) {
   const firstDay = new Date(Date.UTC(year, month - 1, 1));
@@ -102,6 +119,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
   const [monthIndex, setMonthIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
   const [todayKey, setTodayKey] = useState("");
+  const [draggedAssignment, setDraggedAssignment] = useState<DraggedTeamAssignment | null>(null);
   const assignmentMap = useMemo(
     () => new Map(assignments.map((assignment) => [assignment.date, assignment])),
     [assignments]
@@ -144,6 +162,30 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
     }
   }
 
+  function swapAssignmentsByDate(sourceDate: string, targetDate: string, team: TeamName) {
+    const sourceAssignment = assignmentMap.get(sourceDate);
+    const targetAssignment = assignmentMap.get(targetDate);
+
+    if (!sourceAssignment || !targetAssignment || sourceDate === targetDate) {
+      return;
+    }
+
+    const updates = swapTeamMembers(sourceAssignment, targetAssignment, team);
+    if (updates.length > 0) {
+      onAssignmentMembersChange(updates);
+    }
+  }
+
+  function dropOnTeamBadge(targetDate: string, targetTeam: TeamName) {
+    if (!draggedAssignment || draggedAssignment.team !== targetTeam) {
+      setDraggedAssignment(null);
+      return;
+    }
+
+    swapAssignmentsByDate(draggedAssignment.date, targetDate, targetTeam);
+    setDraggedAssignment(null);
+  }
+
   return (
     <section aria-labelledby="calendar-month" className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -152,7 +194,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
             {currentMonth.year}년 {currentMonth.month}월 달력형 당번표
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            수요일 기준, 공휴일은 목요일 표시. 날짜를 누르면 같은 팀 안에서 이전/다음 담당 주차와 교체할 수 있습니다.
+            수요일 기준, 공휴일은 목요일 표시. 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 순서가 교체됩니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -226,11 +268,18 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                         </div>
                       ) : null}
                       {assignment ? (
-                        <button
-                          type="button"
+                        <div
+                          role="button"
+                          tabIndex={0}
                           onClick={() => setSelectedAssignment(assignment)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedAssignment(assignment);
+                            }
+                          }}
                           className={[
-                            "mt-2 block w-full rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
+                            "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
                             isTodayDuty
                               ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
                               : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100"
@@ -250,17 +299,51 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                           {assignment.holidayName ? (
                             <div className="mt-1 font-semibold text-red-700">공휴일 다음 날</div>
                           ) : null}
-                          <ol className="mt-2 space-y-1">
-                            {assignment.pickupMembers.map((member, index) => (
-                              <li
-                                key={`${assignment.date}-${member}-${index}`}
-                                className="rounded border border-amber-100 bg-white px-2 py-1 font-semibold leading-4 text-amber-950"
-                              >
-                                {index + 1}. {member}
-                              </li>
-                            ))}
-                          </ol>
-                        </button>
+                          <div className="mt-2 space-y-1">
+                            <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 font-semibold leading-4 text-stone-800">
+                              1. {assignment.workerSupportName}
+                            </div>
+                            {assignment.activeTeams.map((team, index) => {
+                              const member = assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`;
+                              const canDrop =
+                                draggedAssignment?.team === team && draggedAssignment.date !== assignment.date;
+
+                              return (
+                                <div
+                                  key={`${assignment.date}-${team}`}
+                                  draggable
+                                  onClick={(event) => event.stopPropagation()}
+                                  onDragStart={(event) => {
+                                    event.dataTransfer.effectAllowed = "move";
+                                    event.dataTransfer.setData("text/plain", `${assignment.date}|${team}`);
+                                    setDraggedAssignment({ date: assignment.date, team });
+                                  }}
+                                  onDragEnd={() => setDraggedAssignment(null)}
+                                  onDragOver={(event) => {
+                                    if (draggedAssignment?.team === team) {
+                                      event.preventDefault();
+                                      event.dataTransfer.dropEffect = "move";
+                                    }
+                                  }}
+                                  onDrop={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    dropOnTeamBadge(assignment.date, team);
+                                  }}
+                                  className={[
+                                    "rounded border px-2 py-1 font-semibold leading-4 transition",
+                                    "cursor-grab active:cursor-grabbing",
+                                    teamBadgeStyles[team],
+                                    canDrop ? `ring-2 ring-stone-900 ring-offset-1 ${teamDropStyles[team]}` : ""
+                                  ].join(" ")}
+                                  title={`${team} 담당자. 같은 팀 담당자에게 끌어 놓으면 교체됩니다.`}
+                                >
+                                  {index + 2}. {member}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       ) : null}
                     </>
                   )}
@@ -292,7 +375,7 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
             </div>
 
             <div className="mt-4 rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
-              근로지원인은 고정입니다. 각 팀 담당자는 같은 팀의 이전/다음 담당 주차와만 교체됩니다.
+              근로지원인은 고정입니다. 달력 칸의 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 교체됩니다.
             </div>
 
             <div className="mt-5 space-y-3">
@@ -307,7 +390,10 @@ export default function DutyCalendar({ assignments, onAssignmentMembersChange }:
                 const nextTarget = findSwapTarget(assignments, latestSelectedAssignment, team, 1);
 
                 return (
-                  <section key={team} className="rounded-md border border-stone-200 bg-white p-3">
+                  <section
+                    key={team}
+                    className={`rounded-md border bg-white p-3 ${teamBadgeStyles[team]}`}
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="text-xs font-semibold text-stone-500">{team}</div>
