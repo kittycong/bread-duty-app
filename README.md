@@ -30,6 +30,7 @@ NEXT_PUBLIC_ADMIN_PASSWORD=bread2026
 ```
 
 Supabase SQL Editor에서 `supabase.sql` 내용을 실행하면 공동 저장용 `app_settings` 테이블이 생성됩니다.
+`SUPABASE_SERVICE_ROLE_KEY`가 있으면 서버에서 해당 키로 저장하고, 없으면 `NEXT_PUBLIC_SUPABASE_ANON_KEY`와 `supabase.sql`의 공개 정책으로 저장합니다.
 `SUPABASE_SERVICE_ROLE_KEY`는 Vercel 환경변수에만 저장하고 브라우저에 노출하지 마세요.
 
 ## 폴더 구조

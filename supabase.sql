@@ -22,3 +22,23 @@ for each row
 execute function public.touch_app_settings_updated_at();
 
 alter table public.app_settings enable row level security;
+
+drop policy if exists "Allow app settings read" on public.app_settings;
+drop policy if exists "Allow app settings insert" on public.app_settings;
+drop policy if exists "Allow app settings update" on public.app_settings;
+
+create policy "Allow app settings read"
+on public.app_settings
+for select
+using (true);
+
+create policy "Allow app settings insert"
+on public.app_settings
+for insert
+with check (true);
+
+create policy "Allow app settings update"
+on public.app_settings
+for update
+using (true)
+with check (true);
