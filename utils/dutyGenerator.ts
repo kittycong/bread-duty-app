@@ -55,11 +55,15 @@ function getDateParts(date: Date) {
 }
 
 function isEmployeeActiveOnDate(employee: Employee, date: string) {
-  return (
-    employee.status === "active" &&
-    employee.effectiveFrom <= date &&
-    (!employee.retiredFrom || date < employee.retiredFrom)
-  );
+  if (employee.effectiveFrom > date) {
+    return false;
+  }
+
+  if (employee.retiredFrom) {
+    return date < employee.retiredFrom;
+  }
+
+  return employee.status === "active";
 }
 
 function getActiveEmployeesByTeamOnDate(roster: Employee[], team: TeamName, date: string): Employee[] {
