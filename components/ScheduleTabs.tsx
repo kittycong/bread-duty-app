@@ -461,6 +461,7 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
       {activeTab === "calendar" ? (
         <DutyCalendar
           assignments={assignments}
+          employees={employeeOrder}
           onAssignmentDatesChange={updateAssignmentDates}
           onAssignmentMembersChange={updateAssignmentMembers}
         />

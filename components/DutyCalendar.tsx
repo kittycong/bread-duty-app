@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { getPublicHoliday } from "@/lib/holidays";
 import { teamNames } from "@/lib/employees";
-import type { DutyAssignment, TeamName } from "@/types";
+import { isEmployeeActiveOnDate } from "@/utils/dutyGenerator";
+import type { DutyAssignment, Employee, TeamName } from "@/types";
 
 type AssignmentUpdate = {
   date: string;
@@ -18,13 +19,9 @@ type AssignmentDateUpdate = {
 
 type DutyCalendarProps = {
   assignments: DutyAssignment[];
+  employees: Employee[];
   onAssignmentDatesChange: (updates: AssignmentDateUpdate[]) => void;
   onAssignmentMembersChange: (updates: AssignmentUpdate[]) => void;
-};
-
-type TeamSwapTarget = {
-  assignment: DutyAssignment;
-  member: string;
 };
 
 type DraggedTeamAssignment = {
@@ -106,33 +103,21 @@ function swapTeamMembers(
   ];
 }
 
-function findSwapTarget(
-  assignments: DutyAssignment[],
-  selectedAssignment: DutyAssignment,
-  team: TeamName,
-  direction: -1 | 1
-): TeamSwapTarget | undefined {
-  const selectedIndex = assignments.findIndex((assignment) => assignment.date === selectedAssignment.date);
-
-  for (let index = selectedIndex + direction; index >= 0 && index < assignments.length; index += direction) {
-    const assignment = assignments[index];
-    const member = getTeamMember(assignment, team);
-
-    if (member) {
-      return { assignment, member };
-    }
-  }
-
-  return undefined;
+function getEligibleEmployees(employees: Employee[], team: TeamName, date: string) {
+  return employees.filter(
+    (employee) => employee.team === team && isEmployeeActiveOnDate(employee, date)
+  );
 }
 
 export default function DutyCalendar({
   assignments,
+  employees,
   onAssignmentDatesChange,
   onAssignmentMembersChange
 }: DutyCalendarProps) {
   const [monthIndex, setMonthIndex] = useState(0);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
+  const [draftPickupByTeam, setDraftPickupByTeam] = useState<Partial<Record<TeamName, string>>>({});
   const [todayKey, setTodayKey] = useState("");
   const [draggedDateAssignment, setDraggedDateAssignment] = useState<DraggedDateAssignment | null>(null);
   const [draggedAssignment, setDraggedAssignment] = useState<DraggedTeamAssignment | null>(null);
@@ -164,19 +149,36 @@ export default function DutyCalendar({
     setTodayKey(getKoreaTodayKey());
   }, []);
 
+  useEffect(() => {
+    if (!latestSelectedAssignment) {
+      setDraftPickupByTeam({});
+      return;
+    }
+
+    setDraftPickupByTeam({ ...latestSelectedAssignment.pickupByTeam });
+  }, [latestSelectedAssignment]);
+
   function closeAssignment() {
     setSelectedAssignment(null);
   }
 
-  function swapWithTarget(team: TeamName, target: TeamSwapTarget) {
+  function saveSelectedAssignment() {
     if (!latestSelectedAssignment) {
       return;
     }
 
-    const updates = swapTeamMembers(latestSelectedAssignment, target.assignment, team);
+    const updates = getActiveTeams(latestSelectedAssignment)
+      .map((team) => ({
+        date: latestSelectedAssignment.date,
+        member: draftPickupByTeam[team] ?? "",
+        team
+      }))
+      .filter((update) => update.member && update.member !== getTeamMember(latestSelectedAssignment, update.team));
+
     if (updates.length > 0) {
       onAssignmentMembersChange(updates);
     }
+    closeAssignment();
   }
 
   function swapAssignmentsByDate(sourceDate: string, targetDate: string, team: TeamName) {
@@ -230,7 +232,7 @@ export default function DutyCalendar({
               : `${currentMonth.year}년 ${currentMonth.month}월 달력형 당번표`}
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 팀별 담당자는 같은 팀끼리 교체할 수 있습니다.
+            당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 날짜를 누르면 팀별 담당자를 직접 저장할 수 있습니다.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -437,7 +439,7 @@ export default function DutyCalendar({
               <div>
                 <p className="text-sm font-semibold text-amber-700">{latestSelectedAssignment.dateLabel}</p>
                 <h3 className="mt-1 text-xl font-bold text-stone-950">
-                  {latestSelectedAssignment.week}주차 팀별 순서 조정
+                  {latestSelectedAssignment.week}주차 일정 변경
                 </h3>
                 <p className="mt-1 text-sm text-stone-600">백업팀: {latestSelectedAssignment.backupTeam}</p>
               </div>
@@ -451,7 +453,7 @@ export default function DutyCalendar({
             </div>
 
             <div className="mt-4 rounded-md border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600">
-              근로지원인은 고정입니다. 달력 칸의 팀별 담당자를 끌어 같은 팀 다른 주차에 놓으면 교체됩니다.
+              근로지원인은 고정입니다. 팀별 담당자는 해당 날짜에 근무 가능한 같은 팀 직원 중에서 선택합니다.
             </div>
 
             <div className="mt-5 space-y-3">
@@ -462,51 +464,60 @@ export default function DutyCalendar({
 
               {getActiveTeams(latestSelectedAssignment).map((team) => {
                 const currentMember = getTeamMember(latestSelectedAssignment, team);
-                const previousTarget = findSwapTarget(assignments, latestSelectedAssignment, team, -1);
-                const nextTarget = findSwapTarget(assignments, latestSelectedAssignment, team, 1);
+                const eligibleEmployees = getEligibleEmployees(employees, team, latestSelectedAssignment.date);
 
                 return (
                   <section
                     key={team}
                     className={`rounded-md border bg-white p-3 ${teamBadgeStyles[team]}`}
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_220px] sm:items-center">
                       <div>
                         <div className="text-xs font-semibold text-stone-500">{team}</div>
-                        <div className="mt-1 text-lg font-bold text-stone-950">{currentMember}</div>
+                        <div className="mt-1 text-lg font-bold text-stone-950">
+                          {draftPickupByTeam[team] ?? currentMember}
+                        </div>
                       </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <button
-                          type="button"
-                          onClick={() => previousTarget && swapWithTarget(team, previousTarget)}
-                          disabled={!previousTarget}
-                          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+                      <label className="space-y-1 text-xs font-semibold text-stone-600">
+                        <span>담당자 선택</span>
+                        <select
+                          value={draftPickupByTeam[team] ?? currentMember ?? ""}
+                          onChange={(event) =>
+                            setDraftPickupByTeam((current) => ({
+                              ...current,
+                              [team]: event.target.value
+                            }))
+                          }
+                          className="h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-900"
                         >
-                          <span className="block">이전 담당 주차와 교체</span>
-                          <span className="mt-1 block font-normal">
-                            {previousTarget
-                              ? `${previousTarget.assignment.week}주차 ${previousTarget.member}`
-                              : "교체 가능 주차 없음"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => nextTarget && swapWithTarget(team, nextTarget)}
-                          disabled={!nextTarget}
-                          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-left text-xs font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
-                        >
-                          <span className="block">다음 담당 주차와 교체</span>
-                          <span className="mt-1 block font-normal">
-                            {nextTarget
-                              ? `${nextTarget.assignment.week}주차 ${nextTarget.member}`
-                              : "교체 가능 주차 없음"}
-                          </span>
-                        </button>
-                      </div>
+                          {eligibleEmployees.map((employee) => (
+                            <option key={employee.id} value={employee.name}>
+                              {employee.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                     </div>
                   </section>
                 );
               })}
+            </div>
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeAssignment}
+                className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={saveSelectedAssignment}
+                className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+              >
+                일정 변경 저장
+              </button>
             </div>
           </div>
         </div>
