@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import type { DutyAssignment, TeamName } from "@/types";
 
 type DutyTableProps = {
@@ -10,7 +13,36 @@ const teamBadgeStyles: Record<TeamName, string> = {
   "복지사업팀": "border-yellow-200 bg-yellow-50 text-yellow-900"
 };
 
+function getAssignmentMembers(assignment: DutyAssignment) {
+  return [
+    assignment.workerSupportName,
+    ...assignment.activeTeams.map((team) => assignment.pickupByTeam[team] ?? "")
+  ].filter(Boolean);
+}
+
 export default function DutyTable({ assignments }: DutyTableProps) {
+  const [searchName, setSearchName] = useState("");
+  const employeeNames = useMemo(() => {
+    const names = new Set<string>();
+
+    assignments.forEach((assignment) => {
+      getAssignmentMembers(assignment).forEach((name) => names.add(name));
+    });
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [assignments]);
+  const filteredAssignments = useMemo(() => {
+    const query = searchName.trim();
+
+    if (!query) {
+      return assignments;
+    }
+
+    return assignments.filter((assignment) =>
+      getAssignmentMembers(assignment).some((name) => name.includes(query))
+    );
+  }, [assignments, searchName]);
+
   if (assignments.length === 0) {
     return (
       <div className="rounded-md border border-stone-200 bg-white p-8 text-center text-sm text-stone-600">
@@ -20,63 +52,107 @@ export default function DutyTable({ assignments }: DutyTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-stone-200 bg-white">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
-          <caption className="sr-only">주차별 빵 수령 당번표</caption>
-          <thead className="bg-stone-100 text-xs font-semibold uppercase tracking-normal text-stone-600">
-            <tr>
-              <th scope="col" className="whitespace-nowrap px-4 py-3">
-                주차
-              </th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3">
-                날짜
-              </th>
-              <th scope="col" className="whitespace-nowrap px-4 py-3">
-                백업팀
-              </th>
-              <th scope="col" className="px-4 py-3">
-                수령 담당
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-200">
-            {assignments.map((assignment) => (
-              <tr key={`${assignment.week}-${assignment.date}`} className="hover:bg-stone-50">
-                <td className="whitespace-nowrap px-4 py-4 font-medium text-stone-950">
-                  {assignment.week}주차
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-stone-700">
-                  <div className="font-medium text-stone-900">{assignment.dateLabel}</div>
-                  {assignment.holidayName ? (
-                    <div className="mt-1 inline-flex rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
-                      {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
-                    </div>
-                  ) : null}
-                </td>
-                <td className="whitespace-nowrap px-4 py-4 text-stone-700">
-                  {assignment.backupTeam}
-                </td>
-                <td className="px-4 py-4 text-stone-700">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
-                      {assignment.workerSupportName}
-                    </span>
-                    {assignment.activeTeams.map((team) => (
-                      <span
-                        key={`${assignment.date}-${team}`}
-                        className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
-                        title={team}
-                      >
-                        {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
-                      </span>
-                    ))}
-                  </div>
-                </td>
+    <div className="space-y-3">
+      <section className="rounded-md border border-stone-200 bg-white p-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <label className="space-y-1 text-sm font-semibold text-stone-700">
+            <span>개인별 당번 일정 검색</span>
+            <input
+              type="search"
+              list="duty-member-names"
+              value={searchName}
+              onChange={(event) => setSearchName(event.target.value)}
+              placeholder="직원 이름 입력"
+              className="h-10 w-full rounded-md border border-stone-300 px-3 text-sm font-normal text-stone-900"
+            />
+            <datalist id="duty-member-names">
+              {employeeNames.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </label>
+          <button
+            type="button"
+            onClick={() => setSearchName("")}
+            disabled={!searchName}
+            className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+          >
+            검색 초기화
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-stone-600">
+          {searchName.trim()
+            ? `${searchName.trim()} 검색 결과 ${filteredAssignments.length}건`
+            : `전체 일정 ${assignments.length}건`}
+        </p>
+      </section>
+
+      <div className="overflow-hidden rounded-md border border-stone-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
+            <caption className="sr-only">주차별 빵 수령 당번표</caption>
+            <thead className="bg-stone-100 text-xs font-semibold uppercase tracking-normal text-stone-600">
+              <tr>
+                <th scope="col" className="whitespace-nowrap px-4 py-3">
+                  주차
+                </th>
+                <th scope="col" className="whitespace-nowrap px-4 py-3">
+                  날짜
+                </th>
+                <th scope="col" className="whitespace-nowrap px-4 py-3">
+                  백업팀
+                </th>
+                <th scope="col" className="px-4 py-3">
+                  수령 담당
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-stone-200">
+              {filteredAssignments.length > 0 ? (
+                filteredAssignments.map((assignment) => (
+                  <tr key={`${assignment.week}-${assignment.date}`} className="hover:bg-stone-50">
+                    <td className="whitespace-nowrap px-4 py-4 font-medium text-stone-950">
+                      {assignment.week}주차
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-stone-700">
+                      <div className="font-medium text-stone-900">{assignment.dateLabel}</div>
+                      {assignment.holidayName ? (
+                        <div className="mt-1 inline-flex rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+                          {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-4 text-stone-700">
+                      {assignment.backupTeam}
+                    </td>
+                    <td className="px-4 py-4 text-stone-700">
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
+                          {assignment.workerSupportName}
+                        </span>
+                        {assignment.activeTeams.map((team) => (
+                          <span
+                            key={`${assignment.date}-${team}`}
+                            className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+                            title={team}
+                          >
+                            {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-stone-500">
+                    검색 결과가 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
