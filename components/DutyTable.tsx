@@ -52,10 +52,10 @@ export default function DutyTable({ assignments }: DutyTableProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <section className="rounded-md border border-stone-200 bg-white p-4">
+    <div className="print-area space-y-3">
+      <section className="rounded-md border border-stone-200 bg-white p-4 print:border-0 print:p-0">
         <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <label className="space-y-1 text-sm font-semibold text-stone-700">
+          <label className="print-hidden space-y-1 text-sm font-semibold text-stone-700">
             <span>개인별 당번 일정 검색</span>
             <input
               type="search"
@@ -71,15 +71,27 @@ export default function DutyTable({ assignments }: DutyTableProps) {
               ))}
             </datalist>
           </label>
-          <button
-            type="button"
-            onClick={() => setSearchName("")}
-            disabled={!searchName}
-            className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
-          >
-            검색 초기화
-          </button>
+          <div className="print-hidden flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchName("")}
+              disabled={!searchName}
+              className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+            >
+              검색 초기화
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+            >
+              현재 목록 출력
+            </button>
+          </div>
         </div>
+        <h2 className="hidden text-lg font-bold text-stone-950 print:block">
+          {searchName.trim() ? `${searchName.trim()} 개인별 당번 일정` : "전체 빵 수령 당번표"}
+        </h2>
         <p className="mt-2 text-sm text-stone-600">
           {searchName.trim()
             ? `${searchName.trim()} 검색 결과 ${filteredAssignments.length}건`
@@ -87,7 +99,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
         </p>
       </section>
 
-      <div className="overflow-hidden rounded-md border border-stone-200 bg-white">
+      <div className="overflow-hidden rounded-md border border-stone-200 bg-white print:overflow-visible">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
             <caption className="sr-only">주차별 빵 수령 당번표</caption>

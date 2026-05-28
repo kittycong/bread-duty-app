@@ -223,7 +223,7 @@ export default function DutyCalendar({
   }
 
   return (
-    <section aria-labelledby="calendar-month" className="space-y-4">
+    <section aria-labelledby="calendar-month" className="print-area space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 id="calendar-month" className="text-xl font-bold text-stone-950">
@@ -235,7 +235,7 @@ export default function DutyCalendar({
             당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 날짜를 누르면 팀별 담당자를 직접 저장할 수 있습니다.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="print-hidden flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setMonthIndex((index) => Math.max(0, index - 1))}
@@ -252,6 +252,13 @@ export default function DutyCalendar({
           >
             다음 달
           </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+          >
+            현재 달력 출력
+          </button>
         </div>
       </div>
 
@@ -260,8 +267,8 @@ export default function DutyCalendar({
           const cells = getMonthCells(visibleMonth.year, visibleMonth.month);
 
           return (
-            <div key={`${visibleMonth.year}-${visibleMonth.month}`} className="overflow-x-auto rounded-md border border-stone-200 bg-white">
-              <article className="min-w-[760px]">
+            <div key={`${visibleMonth.year}-${visibleMonth.month}`} className="overflow-x-auto rounded-md border border-stone-200 bg-white print:overflow-visible">
+              <article className="min-w-[760px] print:min-w-0">
                 <div className="border-b border-stone-200 bg-stone-50 px-3 py-2">
                   <h3 className="text-base font-bold text-stone-950">
                     {visibleMonth.year}년 {visibleMonth.month}월
@@ -350,7 +357,7 @@ export default function DutyCalendar({
                                   }
                                 }}
                                 className={[
-                                  "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600",
+                                  "mt-2 block w-full cursor-pointer rounded-md p-2 text-left text-amber-950 transition focus:outline-none focus:ring-2 focus:ring-amber-600 print:cursor-default",
                                   isTodayDuty
                                     ? "border-2 border-stone-900 bg-amber-100 shadow-sm"
                                     : "border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100",
@@ -433,7 +440,7 @@ export default function DutyCalendar({
       </div>
 
       {latestSelectedAssignment ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-stone-950/50 p-3 sm:items-center sm:justify-center">
+        <div className="print-hidden fixed inset-0 z-50 flex items-end bg-stone-950/50 p-3 sm:items-center sm:justify-center">
           <div className="max-h-[90vh] w-full overflow-y-auto rounded-md bg-white p-5 shadow-xl sm:max-w-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>

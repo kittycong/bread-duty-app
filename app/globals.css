@@ -21,3 +21,34 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+@media print {
+  @page {
+    margin: 12mm;
+    size: A4 landscape;
+  }
+
+  body {
+    background: white;
+    color: #111827;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-area {
+    display: block !important;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  tr,
+  article,
+  section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
