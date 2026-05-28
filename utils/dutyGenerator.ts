@@ -54,7 +54,7 @@ function getDateParts(date: Date) {
   };
 }
 
-function isEmployeeActiveOnDate(employee: Employee, date: string) {
+export function isEmployeeActiveOnDate(employee: Employee, date: string) {
   if (employee.effectiveFrom > date) {
     return false;
   }

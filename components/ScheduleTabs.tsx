@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
-import { defaultWorkerSupport, generateScheduleUntil } from "@/utils/dutyGenerator";
+import { defaultWorkerSupport, generateScheduleUntil, isEmployeeActiveOnDate } from "@/utils/dutyGenerator";
 import type {
   AssignmentDateOverrides,
   AssignmentOverrides,
@@ -65,6 +65,35 @@ function migrateDefaultAdminOrder(savedEmployees: Employee[], initialEmployees: 
   return [...migratedAdminEmployees, ...withoutAdminEmployees];
 }
 
+function migrateDefaultEmploymentDates(savedEmployees: Employee[], initialEmployees: Employee[]) {
+  const initialById = new Map(initialEmployees.map((employee) => [employee.id, employee]));
+  const initialByNameAndTeam = new Map(
+    initialEmployees.map((employee) => [`${employee.team}|${employee.name}`, employee])
+  );
+
+  return savedEmployees.map((employee) => {
+    const defaultEmployee =
+      initialById.get(employee.id) ?? initialByNameAndTeam.get(`${employee.team}|${employee.name}`);
+
+    if (!defaultEmployee?.retiredFrom || employee.retiredFrom) {
+      return employee;
+    }
+
+    return {
+      ...employee,
+      retiredFrom: defaultEmployee.retiredFrom,
+      status: "retired" as const
+    };
+  });
+}
+
+function migrateSavedEmployees(savedEmployees: Employee[], initialEmployees: Employee[]) {
+  return migrateDefaultEmploymentDates(
+    migrateDefaultAdminOrder(savedEmployees, initialEmployees),
+    initialEmployees
+  );
+}
+
 function getDateParts(date: string) {
   const [year, month, day] = date.split("-").map(Number);
   const dateObject = new Date(Date.UTC(year, month - 1, day));
@@ -77,6 +106,48 @@ function getDateParts(date: string) {
     weekday,
     year
   };
+}
+
+function isEligibleOverrideMember(roster: Employee[], team: TeamName, member: string, date: string) {
+  return roster.some(
+    (employee) =>
+      employee.team === team &&
+      employee.name === member &&
+      isEmployeeActiveOnDate(employee, date)
+  );
+}
+
+function sanitizeAssignmentOverrides(
+  roster: Employee[],
+  overrides: AssignmentOverrides,
+  dateOverrides: AssignmentDateOverrides,
+  startDate: string,
+  endDate: string
+) {
+  const schedule = generateScheduleUntil(startDate, endDate, roster);
+  const cleanedOverrides: AssignmentOverrides = {};
+
+  schedule.forEach((assignment) => {
+    const assignmentDate = dateOverrides[String(assignment.week)] ?? assignment.date;
+    const override = overrides[assignmentDate];
+
+    if (!override) {
+      return;
+    }
+
+    assignment.activeTeams.forEach((team) => {
+      const member = override[team];
+
+      if (member && isEligibleOverrideMember(roster, team, member, assignmentDate)) {
+        cleanedOverrides[assignmentDate] = {
+          ...(cleanedOverrides[assignmentDate] ?? {}),
+          [team]: member
+        };
+      }
+    });
+  });
+
+  return cleanedOverrides;
 }
 
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
@@ -95,7 +166,7 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
 
     try {
       const parsedEmployees = JSON.parse(savedEmployees) as Employee[];
-      const migratedEmployees = migrateDefaultAdminOrder(parsedEmployees, initialEmployees);
+      const migratedEmployees = migrateSavedEmployees(parsedEmployees, initialEmployees);
 
       if (migratedEmployees !== parsedEmployees) {
         window.localStorage.setItem(employeeStorageKey, JSON.stringify(migratedEmployees));
@@ -159,12 +230,15 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
     return generateScheduleUntil(startDate, endDate, employeeOrder, workerSupport).map((assignment) => {
       const dateOverride = assignmentDateOverrides[String(assignment.week)];
       const dateParts = dateOverride ? getDateParts(dateOverride) : undefined;
-      const override = assignmentOverrides[dateOverride ?? assignment.date] ?? {};
+      const assignmentDate = dateOverride ?? assignment.date;
+      const override = assignmentOverrides[assignmentDate] ?? {};
       const pickupByTeam = { ...assignment.pickupByTeam };
 
       assignment.activeTeams.forEach((team) => {
-        if (override[team]) {
-          pickupByTeam[team] = override[team];
+        const overrideMember = override[team];
+
+        if (overrideMember && isEligibleOverrideMember(employeeOrder, team, overrideMember, assignmentDate)) {
+          pickupByTeam[team] = overrideMember;
         }
       });
 
@@ -199,7 +273,13 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
   ): SharedDutySettings {
     return {
       assignmentDateOverrides: nextAssignmentDateOverrides,
-      assignmentOverrides: nextAssignmentOverrides,
+      assignmentOverrides: sanitizeAssignmentOverrides(
+        nextEmployees,
+        nextAssignmentOverrides,
+        nextAssignmentDateOverrides,
+        startDate,
+        endDate
+      ),
       employees: nextEmployees,
       workerSupport: nextWorkerSupport
     };
@@ -263,11 +343,12 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
         setStorageMessage("공동 저장이 연결되었습니다.");
 
         if (data.settings) {
-          setEmployeeOrder(migrateDefaultAdminOrder(data.settings.employees, initialEmployees));
+          const migratedEmployees = migrateSavedEmployees(data.settings.employees, initialEmployees);
+          setEmployeeOrder(migratedEmployees);
           setWorkerSupport(data.settings.workerSupport);
           setAssignmentOverrides(data.settings.assignmentOverrides ?? {});
           setAssignmentDateOverrides(data.settings.assignmentDateOverrides ?? {});
-          saveLocalSettings(data.settings);
+          saveLocalSettings({ ...data.settings, employees: migratedEmployees });
         }
       } catch {
         if (isMounted) {

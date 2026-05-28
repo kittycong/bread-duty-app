@@ -7,14 +7,15 @@ export const employees: Employee[] = [
   { id: "admin-kim-hwi-won", name: "김휘원", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "admin-no-hyeon-suk", name: "노현숙", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "admin-jo-seung-min", name: "조승민", team: "사무행정팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "support-kwon-eun-ji", name: "권은지", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "support-kim-yu-ri", name: "김유리", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
+  { id: "support-kwon-eun-ji", name: "권은지", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "support-jeong-chae-yun", name: "정채윤", team: "활동지원팀", status: "active", effectiveFrom: "2026-05-27" },
+  { id: "business-choi-yu-na", name: "최유나", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" },
+  { id: "business-kang-ji-na", name: "강지나", team: "복지사업팀", status: "retired", effectiveFrom: "2026-05-27", retiredFrom: "2026-06-10" },
+  { id: "business-in-sang-pil", name: "인상필", team: "복지사업팀", status: "retired", effectiveFrom: "2026-05-27", retiredFrom: "2026-05-27" },
   { id: "business-kim-eun-seo", name: "김은서", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" },
   { id: "business-song-ji-eun", name: "송지은", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "business-kang-ji-na", name: "강지나", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "business-choi-yu-na", name: "최유나", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" },
-  { id: "business-in-sang-pil", name: "인상필", team: "복지사업팀", status: "active", effectiveFrom: "2026-05-27" }
+  { id: "business-hong-min-seo", name: "홍민서", team: "복지사업팀", status: "active", effectiveFrom: "2026-06-10" }
 ];
 
 export function getActiveEmployeesByTeam(team: TeamName): Employee[] {
