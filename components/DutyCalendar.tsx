@@ -77,6 +77,13 @@ function getKoreaTodayKey() {
   }).format(new Date());
 }
 
+function findMonthIndexForDate(months: Array<{ month: number; year: number }>, dateKey: string) {
+  const [year, month] = dateKey.split("-").map(Number);
+  const index = months.findIndex((calendarMonth) => calendarMonth.year === year && calendarMonth.month === month);
+
+  return index >= 0 ? index : 0;
+}
+
 function getActiveTeams(assignment: DutyAssignment): TeamName[] {
   return assignment.activeTeams ?? teamNames.filter((team) => team !== assignment.backupTeam);
 }
@@ -116,6 +123,7 @@ export default function DutyCalendar({
   onAssignmentMembersChange
 }: DutyCalendarProps) {
   const [monthIndex, setMonthIndex] = useState(0);
+  const [didSetInitialMonth, setDidSetInitialMonth] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<DutyAssignment | null>(null);
   const [draftPickupByTeam, setDraftPickupByTeam] = useState<Partial<Record<TeamName, string>>>({});
   const [todayKey, setTodayKey] = useState("");
@@ -148,6 +156,17 @@ export default function DutyCalendar({
   useEffect(() => {
     setTodayKey(getKoreaTodayKey());
   }, []);
+
+  useEffect(() => {
+    if (didSetInitialMonth || months.length === 0) {
+      return;
+    }
+
+    const today = getKoreaTodayKey();
+    setTodayKey(today);
+    setMonthIndex(findMonthIndexForDate(months, today));
+    setDidSetInitialMonth(true);
+  }, [didSetInitialMonth, months]);
 
   useEffect(() => {
     if (!latestSelectedAssignment) {
@@ -313,7 +332,7 @@ export default function DutyCalendar({
                           [
                             "min-h-36 border-b border-r p-2 text-xs",
                             holidayName ? "border-red-100 bg-red-50" : "border-stone-100",
-                            isToday ? "relative z-10 ring-2 ring-stone-900 ring-inset" : "",
+                            isToday ? "relative z-10 bg-sky-50 ring-4 ring-sky-600 ring-inset" : "",
                             isDateDropTarget ? "bg-sky-50 ring-2 ring-sky-500 ring-inset" : ""
                           ].join(" ")
                         }

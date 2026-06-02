@@ -150,6 +150,47 @@ function sanitizeAssignmentOverrides(
   return cleanedOverrides;
 }
 
+function shouldPreserveCurrentAssignments(currentEmployees: Employee[], nextEmployees: Employee[]) {
+  const nextById = new Map(nextEmployees.map((employee) => [employee.id, employee]));
+
+  return currentEmployees.some((currentEmployee) => {
+    const nextEmployee = nextById.get(currentEmployee.id);
+
+    if (!nextEmployee) {
+      return true;
+    }
+
+    return (
+      Boolean(nextEmployee.retiredFrom) &&
+      currentEmployee.retiredFrom !== nextEmployee.retiredFrom
+    );
+  });
+}
+
+function preserveDisplayedAssignments(
+  currentAssignments: ReturnType<typeof generateScheduleUntil>,
+  currentOverrides: AssignmentOverrides
+) {
+  const nextOverrides: AssignmentOverrides = { ...currentOverrides };
+
+  currentAssignments.forEach((assignment) => {
+    assignment.activeTeams.forEach((team) => {
+      const member = assignment.pickupByTeam[team];
+
+      if (!member || member.endsWith("담당자 미지정")) {
+        return;
+      }
+
+      nextOverrides[assignment.date] = {
+        ...(nextOverrides[assignment.date] ?? {}),
+        [team]: member
+      };
+    });
+  });
+
+  return nextOverrides;
+}
+
 export default function ScheduleTabs({ endDate, initialEmployees, startDate }: ScheduleTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>("table");
   const [isSharedStorageReady, setIsSharedStorageReady] = useState(false);
@@ -383,6 +424,16 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
     setAssignmentDateOverrides(savedSettings.assignmentDateOverrides ?? {});
   }
 
+  function updateRosterEmployees(nextEmployees: Employee[]) {
+    if (shouldPreserveCurrentAssignments(employeeOrder, nextEmployees)) {
+      setAssignmentOverrides((currentOverrides) =>
+        preserveDisplayedAssignments(assignments, currentOverrides)
+      );
+    }
+
+    setEmployeeOrder(nextEmployees);
+  }
+
   function resetRosterSettings() {
     window.localStorage.removeItem(employeeStorageKey);
     window.localStorage.removeItem(workerSupportStorageKey);
@@ -470,7 +521,7 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
         <EmployeeRoster
           employees={employeeOrder}
           isSharedStorageReady={isSharedStorageReady}
-          onEmployeesChange={setEmployeeOrder}
+          onEmployeesChange={updateRosterEmployees}
           onResetSettings={resetRosterSettings}
           onSaveSettings={saveRosterSettings}
           onWorkerSupportChange={setWorkerSupport}
