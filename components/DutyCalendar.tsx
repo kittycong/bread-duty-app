@@ -243,8 +243,8 @@ export default function DutyCalendar({
 
   return (
     <section aria-labelledby="calendar-month" className="print-area space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
           <h2 id="calendar-month" className="text-lg font-bold text-stone-950 sm:text-xl">
             {nextMonth
               ? `${currentMonth.year}년 ${currentMonth.month}월 - ${nextMonth.year}년 ${nextMonth.month}월 달력형 당번표`
@@ -254,12 +254,12 @@ export default function DutyCalendar({
             당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 날짜를 누르면 팀별 담당자를 직접 저장할 수 있습니다.
           </p>
         </div>
-        <div className="print-hidden grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+        <div className="print-hidden grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center lg:justify-end">
           <button
             type="button"
             onClick={() => setMonthIndex((index) => Math.max(0, index - 1))}
             disabled={monthIndex === 0}
-            className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
+            className="h-10 whitespace-nowrap rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
           >
             이전 달
           </button>
@@ -267,21 +267,21 @@ export default function DutyCalendar({
             type="button"
             onClick={() => setMonthIndex((index) => Math.min(months.length - 1, index + 1))}
             disabled={monthIndex >= months.length - 1}
-            className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
+            className="h-10 whitespace-nowrap rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
           >
             다음 달
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="col-span-2 h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700 sm:col-span-1"
+            className="col-span-2 h-10 whitespace-nowrap rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700 sm:col-span-1"
           >
             현재 달력 출력
           </button>
         </div>
       </div>
 
-      <div className="space-y-4 md:hidden">
+      <div className="space-y-4 lg:hidden">
         {visibleMonths.map((visibleMonth) => {
           const monthAssignments = assignments.filter(
             (assignment) => assignment.year === visibleMonth.year && assignment.month === visibleMonth.month
@@ -320,11 +320,11 @@ export default function DutyCalendar({
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {isTodayDuty ? (
-                            <span className="rounded border border-sky-700 bg-sky-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                          <span className="whitespace-nowrap rounded border border-sky-700 bg-sky-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
                               오늘
                             </span>
                           ) : null}
-                          <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+                          <span className="whitespace-nowrap rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
                             {assignment.backupTeam}
                           </span>
                         </div>
@@ -341,7 +341,7 @@ export default function DutyCalendar({
                         {assignment.activeTeams.map((team, index) => (
                           <div
                             key={`${assignment.date}-${team}-mobile`}
-                            className={`rounded border px-2 py-1 font-semibold ${teamBadgeStyles[team]}`}
+                            className={`break-keep rounded border px-2 py-1 font-semibold ${teamBadgeStyles[team]}`}
                           >
                             {index + 2}. {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
                           </div>
@@ -360,13 +360,13 @@ export default function DutyCalendar({
         })}
       </div>
 
-      <div className="hidden space-y-5 md:block">
+      <div className="hidden space-y-5 lg:block">
         {visibleMonths.map((visibleMonth) => {
           const cells = getMonthCells(visibleMonth.year, visibleMonth.month);
 
           return (
             <div key={`${visibleMonth.year}-${visibleMonth.month}`} className="overflow-x-auto rounded-md border border-stone-200 bg-white print:overflow-visible">
-              <article className="min-w-[760px] print:min-w-0">
+              <article className="min-w-[900px] print:min-w-0">
                 <div className="border-b border-stone-200 bg-stone-50 px-3 py-2">
                   <h3 className="text-base font-bold text-stone-950">
                     {visibleMonth.year}년 {visibleMonth.month}월
@@ -464,8 +464,8 @@ export default function DutyCalendar({
                                 title="당번 카드를 다른 날짜 칸으로 끌어 놓으면 일정 날짜가 변경됩니다."
                               >
                                 <div className="flex items-center justify-between gap-2">
-                                  <span className="font-semibold">{assignment.week}주차</span>
-                                  <span className="text-[11px] font-semibold">
+                                  <span className="whitespace-nowrap font-semibold">{assignment.week}주차</span>
+                                  <span className="break-keep text-right text-[11px] font-semibold">
                                     {isTodayDuty ? "오늘 당번" : assignment.backupTeam}
                                   </span>
                                 </div>
@@ -511,7 +511,7 @@ export default function DutyCalendar({
                                           dropOnTeamBadge(assignment.date, team);
                                         }}
                                         className={[
-                                          "rounded border px-2 py-1 font-semibold leading-4 transition",
+                                    "break-keep rounded border px-2 py-1 font-semibold leading-4 transition",
                                           "cursor-grab active:cursor-grabbing",
                                           teamBadgeStyles[team],
                                           canDrop ? `ring-2 ring-stone-900 ring-offset-1 ${teamDropStyles[team]}` : ""

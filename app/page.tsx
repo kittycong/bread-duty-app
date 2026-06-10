@@ -9,8 +9,8 @@ export default function HomePage() {
   return (
     <main className="min-h-screen">
       <section className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-5 sm:py-8 md:flex-row md:items-end md:justify-between md:py-10">
-          <div>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-4 py-6 sm:px-5 sm:py-8 lg:flex-row lg:items-end lg:justify-between lg:py-10">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-amber-700">bread-duty-app</p>
             <h1 className="mt-2 text-2xl font-bold tracking-normal text-stone-950 sm:text-3xl md:text-4xl">
               빵 수령 당번표
@@ -22,7 +22,7 @@ export default function HomePage() {
           </div>
           <Link
             href="/schedule"
-            className="inline-flex h-11 w-full items-center justify-center rounded-md bg-stone-900 px-5 text-sm font-semibold text-white transition hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-2 sm:w-auto"
+            className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-md bg-stone-900 px-5 text-sm font-semibold text-white transition hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:ring-offset-2 sm:w-auto sm:min-w-28"
           >
             일정 보기
           </Link>

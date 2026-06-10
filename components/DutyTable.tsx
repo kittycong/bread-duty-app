@@ -54,7 +54,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
   return (
     <div className="print-area space-y-3">
       <section className="rounded-md border border-stone-200 bg-white p-4 print:border-0 print:p-0">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
           <label className="print-hidden space-y-1 text-sm font-semibold text-stone-700">
             <span>개인별 당번 일정 검색</span>
             <input
@@ -76,14 +76,14 @@ export default function DutyTable({ assignments }: DutyTableProps) {
               type="button"
               onClick={() => setSearchName("")}
               disabled={!searchName}
-              className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+              className="h-10 whitespace-nowrap rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
             >
               검색 초기화
             </button>
             <button
               type="button"
               onClick={() => window.print()}
-              className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+              className="h-10 whitespace-nowrap rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
             >
               현재 목록 출력
             </button>
@@ -99,7 +99,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
         </p>
       </section>
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {filteredAssignments.length > 0 ? (
           filteredAssignments.map((assignment) => (
             <article
@@ -111,7 +111,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
                   <div className="text-sm font-bold text-stone-950">{assignment.week}주차</div>
                   <div className="mt-1 text-sm font-semibold text-stone-800">{assignment.dateLabel}</div>
                 </div>
-                <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+                <span className="whitespace-nowrap rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
                   {assignment.backupTeam}
                 </span>
               </div>
@@ -127,7 +127,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
                 {assignment.activeTeams.map((team) => (
                   <span
                     key={`${assignment.date}-${team}-card`}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+                    className={`break-keep rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
                     title={team}
                   >
                     {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
@@ -143,7 +143,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
         )}
       </div>
 
-      <div className="hidden overflow-hidden rounded-md border border-stone-200 bg-white print:block print:overflow-visible md:block">
+      <div className="hidden overflow-hidden rounded-md border border-stone-200 bg-white print:block print:overflow-visible lg:block">
         <div className="overflow-x-auto print:overflow-visible">
           <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
             <caption className="sr-only">주차별 빵 수령 당번표</caption>
