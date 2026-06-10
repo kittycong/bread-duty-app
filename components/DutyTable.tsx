@@ -71,7 +71,7 @@ export default function DutyTable({ assignments }: DutyTableProps) {
               ))}
             </datalist>
           </label>
-          <div className="print-hidden flex flex-wrap gap-2">
+          <div className="print-hidden grid gap-2 sm:flex sm:flex-wrap">
             <button
               type="button"
               onClick={() => setSearchName("")}
@@ -99,8 +99,52 @@ export default function DutyTable({ assignments }: DutyTableProps) {
         </p>
       </section>
 
-      <div className="overflow-hidden rounded-md border border-stone-200 bg-white print:overflow-visible">
-        <div className="overflow-x-auto">
+      <div className="space-y-3 md:hidden">
+        {filteredAssignments.length > 0 ? (
+          filteredAssignments.map((assignment) => (
+            <article
+              key={`${assignment.week}-${assignment.date}-card`}
+              className="rounded-md border border-stone-200 bg-white p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-bold text-stone-950">{assignment.week}주차</div>
+                  <div className="mt-1 text-sm font-semibold text-stone-800">{assignment.dateLabel}</div>
+                </div>
+                <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+                  {assignment.backupTeam}
+                </span>
+              </div>
+              {assignment.holidayName ? (
+                <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+                  {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
+                  {assignment.workerSupportName}
+                </span>
+                {assignment.activeTeams.map((team) => (
+                  <span
+                    key={`${assignment.date}-${team}-card`}
+                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+                    title={team}
+                  >
+                    {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
+                  </span>
+                ))}
+              </div>
+            </article>
+          ))
+        ) : (
+          <div className="rounded-md border border-stone-200 bg-white px-4 py-8 text-center text-sm text-stone-500">
+            검색 결과가 없습니다.
+          </div>
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-md border border-stone-200 bg-white print:block print:overflow-visible md:block">
+        <div className="overflow-x-auto print:overflow-visible">
           <table className="min-w-full divide-y divide-stone-200 text-left text-sm">
             <caption className="sr-only">주차별 빵 수령 당번표</caption>
             <thead className="bg-stone-100 text-xs font-semibold uppercase tracking-normal text-stone-600">

@@ -491,7 +491,7 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-md border border-stone-300 bg-white p-1">
+      <div className="grid grid-cols-3 rounded-md border border-stone-300 bg-white p-1 sm:inline-flex">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -499,8 +499,8 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
             onClick={() => setActiveTab(tab.id)}
             className={
               activeTab === tab.id
-                ? "h-9 rounded px-4 text-sm font-semibold bg-stone-900 text-white"
-                : "h-9 rounded px-4 text-sm font-semibold text-stone-600 hover:bg-stone-100"
+                ? "h-9 rounded px-2 text-sm font-semibold bg-stone-900 text-white sm:px-4"
+                : "h-9 rounded px-2 text-sm font-semibold text-stone-600 hover:bg-stone-100 sm:px-4"
             }
           >
             {tab.label}

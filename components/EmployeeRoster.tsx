@@ -177,7 +177,7 @@ export default function EmployeeRoster({
             </p>
           </div>
           {!isAdmin ? (
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="grid gap-2 sm:flex sm:flex-row">
               <input
                 type="password"
                 value={password}
@@ -188,7 +188,7 @@ export default function EmployeeRoster({
                   }
                 }}
                 placeholder="관리자 비밀번호"
-                className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+                className="h-10 min-w-0 rounded-md border border-stone-300 px-3 text-sm"
               />
               <button
                 type="button"
@@ -199,7 +199,7 @@ export default function EmployeeRoster({
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:flex sm:flex-wrap">
               <button
                 type="button"
                 onClick={saveSettings}
@@ -244,7 +244,7 @@ export default function EmployeeRoster({
                 setMessage("근로지원인 설정이 아직 저장되지 않았습니다.");
               }}
               placeholder="근로지원인 표시명"
-              className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+              className="h-10 min-w-0 rounded-md border border-stone-300 px-3 text-sm"
             />
             <button
               type="button"
@@ -270,12 +270,12 @@ export default function EmployeeRoster({
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
               placeholder="직원 이름"
-              className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+              className="h-10 min-w-0 rounded-md border border-stone-300 px-3 text-sm"
             />
             <select
               value={newTeam}
               onChange={(event) => setNewTeam(event.target.value as TeamName)}
-              className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+              className="h-10 min-w-0 rounded-md border border-stone-300 px-3 text-sm"
             >
               {teamNames.map((team) => (
                 <option key={team} value={team}>
@@ -287,7 +287,7 @@ export default function EmployeeRoster({
               type="date"
               value={effectiveFrom}
               onChange={(event) => setEffectiveFrom(event.target.value)}
-              className="h-10 rounded-md border border-stone-300 px-3 text-sm"
+              className="h-10 min-w-0 rounded-md border border-stone-300 px-3 text-sm"
             />
             <button
               type="button"
@@ -355,8 +355,8 @@ export default function EmployeeRoster({
                       순서 {index + 1} · {employee.effectiveFrom}부터 포함
                       {employee.retiredFrom ? ` · ${employee.retiredFrom}부터 제외` : ""}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex rounded-md border border-stone-200 bg-white p-0.5">
+                    <div className="grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+                      <div className="grid grid-cols-2 rounded-md border border-stone-200 bg-white p-0.5 sm:flex">
                         <button
                           type="button"
                           onClick={() => moveEmployee(team, employee.id, -1)}
@@ -377,21 +377,21 @@ export default function EmployeeRoster({
                       <button
                         type="button"
                         onClick={() => retireEmployee(employee.id)}
-                        className="h-8 rounded-md border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+                        className="h-9 rounded-md border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-700 hover:bg-red-100"
                       >
                         상단 적용일로 퇴사
                       </button>
                       <button
                         type="button"
                         onClick={() => restoreEmployee(employee.id)}
-                        className="h-8 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                        className="h-9 rounded-md border border-emerald-200 bg-emerald-50 px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
                       >
                         퇴사 취소
                       </button>
                       <button
                         type="button"
                         onClick={() => removeEmployee(employee.id)}
-                        className="h-8 rounded-md border border-stone-300 bg-white px-2 text-xs font-semibold text-stone-700 hover:bg-stone-100"
+                        className="h-9 rounded-md border border-stone-300 bg-white px-2 text-xs font-semibold text-stone-700 hover:bg-stone-100"
                       >
                         명단 삭제
                       </button>

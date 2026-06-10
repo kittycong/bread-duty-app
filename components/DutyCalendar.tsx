@@ -243,23 +243,23 @@ export default function DutyCalendar({
 
   return (
     <section aria-labelledby="calendar-month" className="print-area space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 id="calendar-month" className="text-xl font-bold text-stone-950">
+          <h2 id="calendar-month" className="text-lg font-bold text-stone-950 sm:text-xl">
             {nextMonth
               ? `${currentMonth.year}년 ${currentMonth.month}월 - ${nextMonth.year}년 ${nextMonth.month}월 달력형 당번표`
               : `${currentMonth.year}년 ${currentMonth.month}월 달력형 당번표`}
           </h2>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm leading-6 text-stone-600">
             당월과 다음 달을 함께 표시합니다. 당번 카드는 날짜 칸으로 옮기고, 날짜를 누르면 팀별 담당자를 직접 저장할 수 있습니다.
           </p>
         </div>
-        <div className="print-hidden flex flex-wrap items-center gap-2">
+        <div className="print-hidden grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={() => setMonthIndex((index) => Math.max(0, index - 1))}
             disabled={monthIndex === 0}
-            className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+            className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
           >
             이전 달
           </button>
@@ -267,21 +267,100 @@ export default function DutyCalendar({
             type="button"
             onClick={() => setMonthIndex((index) => Math.min(months.length - 1, index + 1))}
             disabled={monthIndex >= months.length - 1}
-            className="h-10 rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+            className="h-10 rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300 sm:px-4"
           >
             다음 달
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
+            className="col-span-2 h-10 rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700 sm:col-span-1"
           >
             현재 달력 출력
           </button>
         </div>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4 md:hidden">
+        {visibleMonths.map((visibleMonth) => {
+          const monthAssignments = assignments.filter(
+            (assignment) => assignment.year === visibleMonth.year && assignment.month === visibleMonth.month
+          );
+
+          return (
+            <section key={`${visibleMonth.year}-${visibleMonth.month}-mobile`} className="space-y-3">
+              <h3 className="rounded-md border border-stone-200 bg-white px-3 py-2 text-base font-bold text-stone-950">
+                {visibleMonth.year}년 {visibleMonth.month}월
+              </h3>
+              {monthAssignments.length > 0 ? (
+                monthAssignments.map((assignment) => {
+                  const isTodayDuty = assignment.date === todayKey;
+
+                  return (
+                    <article
+                      key={`${assignment.week}-${assignment.date}-mobile`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedAssignment(assignment)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedAssignment(assignment);
+                        }
+                      }}
+                      className={[
+                        "rounded-md border bg-white p-4 text-sm shadow-sm",
+                        isTodayDuty ? "border-sky-600 bg-sky-50 ring-2 ring-sky-600" : "border-stone-200"
+                      ].join(" ")}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-stone-950">{assignment.week}주차</div>
+                          <div className="mt-1 font-semibold text-stone-800">{assignment.dateLabel}</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {isTodayDuty ? (
+                            <span className="rounded border border-sky-700 bg-sky-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                              오늘
+                            </span>
+                          ) : null}
+                          <span className="rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+                            {assignment.backupTeam}
+                          </span>
+                        </div>
+                      </div>
+                      {assignment.holidayName ? (
+                        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+                          {assignment.movedFrom} 공휴일({assignment.holidayName})로 다음 날 진행
+                        </div>
+                      ) : null}
+                      <div className="mt-3 space-y-2">
+                        <div className="rounded border border-stone-200 bg-stone-50 px-2 py-1 font-semibold text-stone-800">
+                          1. {assignment.workerSupportName}
+                        </div>
+                        {assignment.activeTeams.map((team, index) => (
+                          <div
+                            key={`${assignment.date}-${team}-mobile`}
+                            className={`rounded border px-2 py-1 font-semibold ${teamBadgeStyles[team]}`}
+                          >
+                            {index + 2}. {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="rounded-md border border-stone-200 bg-white p-4 text-sm text-stone-500">
+                  이 달에는 일정이 없습니다.
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <div className="hidden space-y-5 md:block">
         {visibleMonths.map((visibleMonth) => {
           const cells = getMonthCells(visibleMonth.year, visibleMonth.month);
 
