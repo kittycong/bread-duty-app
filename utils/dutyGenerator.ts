@@ -70,6 +70,24 @@ function getActiveEmployeesByTeamOnDate(roster: Employee[], team: TeamName, date
   return roster.filter((employee) => employee.team === team && isEmployeeActiveOnDate(employee, date));
 }
 
+function selectRotatingEmployee(
+  list: Employee[],
+  assignmentCount: number,
+  previousMember?: string
+) {
+  if (list.length === 0) {
+    return undefined;
+  }
+
+  let index = assignmentCount % list.length;
+
+  if (list.length > 1 && list[index]?.name === previousMember) {
+    index = (index + 1) % list.length;
+  }
+
+  return list[index];
+}
+
 export function generatePickupMembers(
   backupTeam: TeamName,
   weekIndex = 0,
@@ -111,6 +129,7 @@ export function generateSchedule(
     "활동지원팀": 0,
     "복지사업팀": 0
   };
+  const lastAssignedByTeam: Partial<Record<TeamName, string>> = {};
 
   for (let i = 0; i < weeks; i += 1) {
     const wednesday = addDays(parseDate(startDate), i * 7);
@@ -123,8 +142,15 @@ export function generateSchedule(
 
     activeTeams.forEach((team) => {
       const list = getActiveEmployeesByTeamOnDate(roster, team, dateParts.dateText);
-      const index = teamAssignmentCounts[team] % list.length;
-      pickupByTeam[team] = list[index]?.name ?? `${team} 담당자 미지정`;
+      const selectedEmployee = selectRotatingEmployee(
+        list,
+        teamAssignmentCounts[team],
+        lastAssignedByTeam[team]
+      );
+      pickupByTeam[team] = selectedEmployee?.name ?? `${team} 담당자 미지정`;
+      if (selectedEmployee) {
+        lastAssignedByTeam[team] = selectedEmployee.name;
+      }
       teamAssignmentCounts[team] += 1;
     });
 

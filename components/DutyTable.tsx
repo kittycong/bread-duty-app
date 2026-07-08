@@ -7,6 +7,15 @@ type DutyTableProps = {
   assignments: DutyAssignment[];
 };
 
+type DuplicateWarning = {
+  currentDate: string;
+  currentWeek: number;
+  member: string;
+  previousDate: string;
+  previousWeek: number;
+  team: TeamName;
+};
+
 const teamBadgeStyles: Record<TeamName, string> = {
   "사무행정팀": "border-pink-200 bg-pink-50 text-pink-900",
   "활동지원팀": "border-lime-200 bg-lime-50 text-lime-900",
@@ -27,6 +36,41 @@ function getAssignmentMembers(assignment: DutyAssignment) {
     assignment.workerSupportName,
     ...assignment.activeTeams.map((team) => assignment.pickupByTeam[team] ?? "")
   ].filter(Boolean);
+}
+
+function getConsecutiveDuplicateWarnings(assignments: DutyAssignment[]) {
+  const lastByTeam: Partial<Record<TeamName, { date: string; member: string; week: number }>> = {};
+  const warnings: DuplicateWarning[] = [];
+
+  assignments.forEach((assignment) => {
+    assignment.activeTeams.forEach((team) => {
+      const member = assignment.pickupByTeam[team];
+
+      if (!member || member.endsWith("담당자 미지정")) {
+        return;
+      }
+
+      const previous = lastByTeam[team];
+      if (previous?.member === member) {
+        warnings.push({
+          currentDate: assignment.date,
+          currentWeek: assignment.week,
+          member,
+          previousDate: previous.date,
+          previousWeek: previous.week,
+          team
+        });
+      }
+
+      lastByTeam[team] = {
+        date: assignment.date,
+        member,
+        week: assignment.week
+      };
+    });
+  });
+
+  return warnings;
 }
 
 function AssignmentCard({ assignment, todayKey }: { assignment: DutyAssignment; todayKey: string }) {
@@ -168,6 +212,10 @@ export default function DutyTable({ assignments }: DutyTableProps) {
   const visibleAssignments = showPastAssignments
     ? [...pastAssignments, ...currentAssignments]
     : currentAssignments;
+  const duplicateWarnings = useMemo(
+    () => getConsecutiveDuplicateWarnings(filteredAssignments),
+    [filteredAssignments]
+  );
 
   if (assignments.length === 0) {
     return (
@@ -231,6 +279,30 @@ export default function DutyTable({ assignments }: DutyTableProps) {
             ? `${searchName.trim()} 검색 결과 ${filteredAssignments.length}건`
             : `오늘 이후 ${currentAssignments.length}건 · 지난 일정 ${pastAssignments.length}건`}
         </p>
+        <div
+          className={
+            duplicateWarnings.length > 0
+              ? "mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+              : "mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+          }
+        >
+          <div className="font-semibold">
+            {duplicateWarnings.length > 0
+              ? `연속 중복 ${duplicateWarnings.length}건 확인됨`
+              : "연속 중복 없음"}
+          </div>
+          {duplicateWarnings.length > 0 ? (
+            <ul className="mt-1 space-y-1 text-xs font-semibold">
+              {duplicateWarnings.slice(0, 3).map((warning) => (
+                <li key={`${warning.team}-${warning.currentWeek}-${warning.member}`}>
+                  {warning.team} {warning.member}: {warning.previousWeek}주차({warning.previousDate})와{" "}
+                  {warning.currentWeek}주차({warning.currentDate}) 연속 배정
+                </li>
+              ))}
+              {duplicateWarnings.length > 3 ? <li>외 {duplicateWarnings.length - 3}건</li> : null}
+            </ul>
+          ) : null}
+        </div>
       </section>
 
       <div className="space-y-3 lg:hidden">
