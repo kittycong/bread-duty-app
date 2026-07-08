@@ -23,6 +23,15 @@ function createEmployeeId(name: string, team: TeamName) {
   return `${team}-${normalizedName}-${Date.now()}`;
 }
 
+function getKoreaTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
 export default function EmployeeRoster({
   employees,
   isSharedStorageReady,
@@ -84,7 +93,7 @@ export default function EmployeeRoster({
 
   function updateEmployees(nextEmployees: Employee[]) {
     onEmployeesChange(nextEmployees);
-    setMessage("변경사항이 아직 저장되지 않았습니다.");
+    setMessage("달력에는 바로 반영됩니다. 다른 사람과 공유하려면 설정 저장을 누르세요.");
   }
 
   function updateEmployee(employeeId: string, nextFields: Partial<Employee>) {
@@ -148,12 +157,14 @@ export default function EmployeeRoster({
     setNewName("");
   }
 
-  function retireEmployee(employeeId: string) {
+  function retireEmployee(targetEmployee: Employee) {
+    const retiredFrom = targetEmployee.retiredFrom || getKoreaTodayKey();
+
     updateEmployees(
-      employees.map((employee) =>
-        employee.id === employeeId
-          ? { ...employee, status: "retired", retiredFrom: effectiveFrom }
-          : employee
+      employees.map((currentEmployee) =>
+        currentEmployee.id === targetEmployee.id
+          ? { ...currentEmployee, status: "retired", retiredFrom }
+          : currentEmployee
       )
     );
   }
@@ -297,7 +308,10 @@ export default function EmployeeRoster({
               직원 추가
             </button>
           </div>
-          <p className="mt-2 text-sm text-stone-600">입사일 이후 일정부터 당번에 포함됩니다.</p>
+          <p className="mt-2 text-sm text-stone-600">
+            입사일 이후 일정부터 당번에 포함됩니다. 직원별 퇴사 버튼은 해당 직원의 퇴사 적용일을 우선 사용하고,
+            비어 있으면 오늘 날짜로 적용합니다.
+          </p>
         </section>
       ) : null}
 
@@ -376,10 +390,10 @@ export default function EmployeeRoster({
                       </div>
                       <button
                         type="button"
-                        onClick={() => retireEmployee(employee.id)}
+                        onClick={() => retireEmployee(employee)}
                         className="h-9 rounded-md border border-red-200 bg-red-50 px-2 text-xs font-semibold text-red-700 hover:bg-red-100"
                       >
-                        상단 적용일로 퇴사
+                        퇴사 적용
                       </button>
                       <button
                         type="button"
