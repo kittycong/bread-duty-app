@@ -13,6 +13,15 @@ const teamBadgeStyles: Record<TeamName, string> = {
   "복지사업팀": "border-yellow-200 bg-yellow-50 text-yellow-900"
 };
 
+function getKoreaTodayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
 function getAssignmentMembers(assignment: DutyAssignment) {
   return [
     assignment.workerSupportName,
@@ -20,8 +29,114 @@ function getAssignmentMembers(assignment: DutyAssignment) {
   ].filter(Boolean);
 }
 
+function AssignmentCard({ assignment, todayKey }: { assignment: DutyAssignment; todayKey: string }) {
+  const isToday = assignment.date === todayKey;
+
+  return (
+    <article
+      className={[
+        "rounded-md border bg-white p-4",
+        isToday ? "border-sky-600 bg-sky-50 ring-2 ring-sky-600" : "border-stone-200"
+      ].join(" ")}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-bold text-stone-950">{assignment.week}주차</div>
+          <div className="mt-1 text-sm font-semibold text-stone-800">{assignment.dateLabel}</div>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          {isToday ? (
+            <span className="whitespace-nowrap rounded border border-sky-700 bg-sky-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
+              오늘
+            </span>
+          ) : null}
+          <span className="whitespace-nowrap rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
+            {assignment.backupTeam}
+          </span>
+        </div>
+      </div>
+      {assignment.holidayName ? (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+          {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
+        </div>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
+          {assignment.workerSupportName}
+        </span>
+        {assignment.activeTeams.map((team) => (
+          <span
+            key={`${assignment.date}-${team}-card`}
+            className={`break-keep rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+            title={team}
+          >
+            {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
+          </span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function AssignmentRows({ assignments, todayKey }: { assignments: DutyAssignment[]; todayKey: string }) {
+  return (
+    <>
+      {assignments.map((assignment) => {
+        const isToday = assignment.date === todayKey;
+
+        return (
+          <tr
+            key={`${assignment.week}-${assignment.date}`}
+            className={isToday ? "bg-sky-50 ring-2 ring-inset ring-sky-600" : "hover:bg-stone-50"}
+          >
+            <td className="whitespace-nowrap px-4 py-4 font-medium text-stone-950">
+              {assignment.week}주차
+            </td>
+            <td className="whitespace-nowrap px-4 py-4 text-stone-700">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-stone-900">{assignment.dateLabel}</span>
+                {isToday ? (
+                  <span className="rounded border border-sky-700 bg-sky-700 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                    오늘
+                  </span>
+                ) : null}
+              </div>
+              {assignment.holidayName ? (
+                <div className="mt-1 inline-flex rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
+                  {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
+                </div>
+              ) : null}
+            </td>
+            <td className="whitespace-nowrap px-4 py-4 text-stone-700">
+              {assignment.backupTeam}
+            </td>
+            <td className="px-4 py-4 text-stone-700">
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
+                  {assignment.workerSupportName}
+                </span>
+                {assignment.activeTeams.map((team) => (
+                  <span
+                    key={`${assignment.date}-${team}`}
+                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
+                    title={team}
+                  >
+                    {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
+                  </span>
+                ))}
+              </div>
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
+}
+
 export default function DutyTable({ assignments }: DutyTableProps) {
   const [searchName, setSearchName] = useState("");
+  const [showPastAssignments, setShowPastAssignments] = useState(false);
+  const todayKey = useMemo(() => getKoreaTodayKey(), []);
   const employeeNames = useMemo(() => {
     const names = new Set<string>();
 
@@ -42,6 +157,17 @@ export default function DutyTable({ assignments }: DutyTableProps) {
       getAssignmentMembers(assignment).some((name) => name.includes(query))
     );
   }, [assignments, searchName]);
+  const pastAssignments = useMemo(
+    () => filteredAssignments.filter((assignment) => assignment.date < todayKey),
+    [filteredAssignments, todayKey]
+  );
+  const currentAssignments = useMemo(
+    () => filteredAssignments.filter((assignment) => assignment.date >= todayKey),
+    [filteredAssignments, todayKey]
+  );
+  const visibleAssignments = showPastAssignments
+    ? [...pastAssignments, ...currentAssignments]
+    : currentAssignments;
 
   if (assignments.length === 0) {
     return (
@@ -82,6 +208,14 @@ export default function DutyTable({ assignments }: DutyTableProps) {
             </button>
             <button
               type="button"
+              onClick={() => setShowPastAssignments((current) => !current)}
+              disabled={pastAssignments.length === 0}
+              className="h-10 whitespace-nowrap rounded-md border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-700 hover:bg-stone-100 disabled:cursor-not-allowed disabled:text-stone-300"
+            >
+              {showPastAssignments ? "지난 일정 접기" : `지난 일정 ${pastAssignments.length}건`}
+            </button>
+            <button
+              type="button"
               onClick={() => window.print()}
               className="h-10 whitespace-nowrap rounded-md bg-stone-900 px-4 text-sm font-semibold text-white hover:bg-stone-700"
             >
@@ -95,52 +229,29 @@ export default function DutyTable({ assignments }: DutyTableProps) {
         <p className="mt-2 text-sm text-stone-600">
           {searchName.trim()
             ? `${searchName.trim()} 검색 결과 ${filteredAssignments.length}건`
-            : `전체 일정 ${assignments.length}건`}
+            : `오늘 이후 ${currentAssignments.length}건 · 지난 일정 ${pastAssignments.length}건`}
         </p>
       </section>
 
       <div className="space-y-3 lg:hidden">
-        {filteredAssignments.length > 0 ? (
-          filteredAssignments.map((assignment) => (
-            <article
-              key={`${assignment.week}-${assignment.date}-card`}
-              className="rounded-md border border-stone-200 bg-white p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-bold text-stone-950">{assignment.week}주차</div>
-                  <div className="mt-1 text-sm font-semibold text-stone-800">{assignment.dateLabel}</div>
-                </div>
-                <span className="whitespace-nowrap rounded-md border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-700">
-                  {assignment.backupTeam}
-                </span>
-              </div>
-              {assignment.holidayName ? (
-                <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
-                  {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
-                </div>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
-                  {assignment.workerSupportName}
-                </span>
-                {assignment.activeTeams.map((team) => (
-                  <span
-                    key={`${assignment.date}-${team}-card`}
-                    className={`break-keep rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
-                    title={team}
-                  >
-                    {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
-                  </span>
-                ))}
-              </div>
-            </article>
+        {!showPastAssignments && pastAssignments.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowPastAssignments(true)}
+            className="print-hidden w-full rounded-md border border-stone-300 bg-white px-4 py-3 text-left text-sm font-semibold text-stone-700"
+          >
+            지난 일정 {pastAssignments.length}건 접힘
+          </button>
+        ) : null}
+        {visibleAssignments.length > 0 ? (
+          visibleAssignments.map((assignment) => (
+            <AssignmentCard key={`${assignment.week}-${assignment.date}-card`} assignment={assignment} todayKey={todayKey} />
           ))
-        ) : (
+        ) : filteredAssignments.length === 0 ? (
           <div className="rounded-md border border-stone-200 bg-white px-4 py-8 text-center text-sm text-stone-500">
             검색 결과가 없습니다.
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="hidden overflow-hidden rounded-md border border-stone-200 bg-white print:block print:overflow-visible lg:block">
@@ -164,45 +275,27 @@ export default function DutyTable({ assignments }: DutyTableProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
-              {filteredAssignments.length > 0 ? (
-                filteredAssignments.map((assignment) => (
-                  <tr key={`${assignment.week}-${assignment.date}`} className="hover:bg-stone-50">
-                    <td className="whitespace-nowrap px-4 py-4 font-medium text-stone-950">
-                      {assignment.week}주차
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-stone-700">
-                      <div className="font-medium text-stone-900">{assignment.dateLabel}</div>
-                      {assignment.holidayName ? (
-                        <div className="mt-1 inline-flex rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">
-                          {assignment.movedFrom} 공휴일({assignment.holidayName})로 목요일 진행
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-stone-700">
-                      {assignment.backupTeam}
-                    </td>
-                    <td className="px-4 py-4 text-stone-700">
-                      <div className="flex flex-wrap gap-2">
-                        <span className="rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-semibold text-stone-800">
-                          {assignment.workerSupportName}
-                        </span>
-                        {assignment.activeTeams.map((team) => (
-                          <span
-                            key={`${assignment.date}-${team}`}
-                            className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${teamBadgeStyles[team]}`}
-                            title={team}
-                          >
-                            {assignment.pickupByTeam[team] ?? `${team} 담당자 미지정`}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+              {visibleAssignments.length > 0 || pastAssignments.length > 0 ? (
+                <>
+                  {!showPastAssignments && pastAssignments.length > 0 ? (
+                    <tr className="print-hidden bg-stone-50">
+                      <td colSpan={4} className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowPastAssignments(true)}
+                          className="text-sm font-semibold text-stone-700 underline-offset-2 hover:underline"
+                        >
+                          지난 일정 {pastAssignments.length}건 접힘
+                        </button>
+                      </td>
+                    </tr>
+                  ) : null}
+                  <AssignmentRows assignments={visibleAssignments} todayKey={todayKey} />
+                </>
               ) : (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-sm text-stone-500">
-                    검색 결과가 없습니다.
+                    오늘 이후 일정이 없습니다.
                   </td>
                 </tr>
               )}
