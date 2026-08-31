@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { DutyAssignment, TeamName } from "@/types";
+import { getKoreaTodayKey } from "@/utils/dutyGenerator";
 
 type DutyTableProps = {
   assignments: DutyAssignment[];
@@ -21,15 +22,6 @@ const teamBadgeStyles: Record<TeamName, string> = {
   "활동지원팀": "border-lime-200 bg-lime-50 text-lime-900",
   "복지사업팀": "border-yellow-200 bg-yellow-50 text-yellow-900"
 };
-
-function getKoreaTodayKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
-}
 
 function getAssignmentMembers(assignment: DutyAssignment) {
   return [

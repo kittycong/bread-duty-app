@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getPublicHoliday } from "@/lib/holidays";
 import { teamNames } from "@/lib/employees";
-import { isEmployeeActiveOnDate } from "@/utils/dutyGenerator";
+import { getKoreaTodayKey, isEmployeeActiveOnDate } from "@/utils/dutyGenerator";
 import type { DutyAssignment, Employee, TeamName } from "@/types";
 
 type AssignmentUpdate = {
@@ -66,15 +66,6 @@ function getMonthCells(year: number, month: number) {
   }
 
   return cells;
-}
-
-function getKoreaTodayKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
 }
 
 function findMonthIndexForDate(months: Array<{ month: number; year: number }>, dateKey: string) {

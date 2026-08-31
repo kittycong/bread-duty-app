@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { teamNames } from "@/lib/employees";
+import { getKoreaTodayKey } from "@/utils/dutyGenerator";
 import type { Employee, TeamName, WorkerSupport } from "@/types";
 
 type EmployeeRosterProps = {
@@ -21,15 +22,6 @@ const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "bread2026";
 function createEmployeeId(name: string, team: TeamName) {
   const normalizedName = name.trim().replace(/\s+/g, "-");
   return `${team}-${normalizedName}-${Date.now()}`;
-}
-
-function getKoreaTodayKey() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(new Date());
 }
 
 export default function EmployeeRoster({

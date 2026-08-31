@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import DutyCalendar from "@/components/DutyCalendar";
 import DutyTable from "@/components/DutyTable";
 import EmployeeRoster from "@/components/EmployeeRoster";
+import ThisWeekDuty from "@/components/ThisWeekDuty";
 import { defaultWorkerSupport, generateScheduleUntil, isEmployeeActiveOnDate } from "@/utils/dutyGenerator";
 import type {
   AssignmentDateOverrides,
@@ -491,6 +492,8 @@ export default function ScheduleTabs({ endDate, initialEmployees, startDate }: S
 
   return (
     <div className="space-y-4">
+      <ThisWeekDuty assignments={assignments} />
+
       <div className="grid grid-cols-3 rounded-md border border-stone-300 bg-white p-1 sm:inline-flex">
         {tabs.map((tab) => (
           <button

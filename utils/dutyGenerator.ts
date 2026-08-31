@@ -190,3 +190,24 @@ export function generateScheduleUntil(
 
   return generateSchedule(startDate, weeks, roster, workerSupport).filter((assignment) => parseDate(assignment.date) <= end);
 }
+
+export function getKoreaTodayKey(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+export function getKoreaWeekRange(todayKey: string): { start: string; end: string } {
+  const today = parseDate(todayKey);
+  const weekday = today.getUTCDay();
+  const monday = addDays(today, weekday === 0 ? -6 : 1 - weekday);
+
+  return { start: formatDate(monday), end: formatDate(addDays(monday, 6)) };
+}
+
+export function getDaysUntil(todayKey: string, dateKey: string): number {
+  return Math.round((parseDate(dateKey).getTime() - parseDate(todayKey).getTime()) / (24 * 60 * 60 * 1000));
+}
